@@ -3,6 +3,7 @@
 #include<math.h>
 #include<vector>
 #include<GL/glut.h>
+#include<locale.h>
 #include<iostream>
 #include<soil.h>
 #include<ctime>
@@ -20,19 +21,23 @@ using namespace std;
 #define NORMALMODE 107
 #define SHOWRECORDS 108
 #define ENTERTEXT 109
-#define EXIT 110
+#define GAMEOVERPROC 110
+#define EXIT 111
 
 using namespace std;
 
-Button playBtn, recordsBtn, exitBtn, nextLvlBtn, menuBtn, replayBtn, lvlBtns[10], gameModeButtons[2], backBtn;
+Button playBtn, recordsBtn, exitBtn, nextLvlBtn, menuBtn, replayBtn, lvlBtns[10], gameModeButtons[2], backBtn, nextPageBtn, prevPageBtn;
 int windowWidth = 480, windowHeight = 600;
+int bonusK = 1;
 int x = -1, y = -1, btnWidth = 150, btnState, btnStart, btnPressed = -1, plateWidth = windowWidth / 5, xLeftPlatePos, xRightPlatePos, lifes = 3;
-int xMousePos = 0, yPlatePos = 3 * windowHeight / 4 + 5, yPrevPlatePos = 0, trainModeLvlPassed = 0, availableLvls = 0;
+int xMousePos = 0, yPlatePos = 3 * windowHeight / 4 + 5, yPrevPlatePos = 0, currentTrainLvl = 1, availableLvls = 0;
 int blockAmount = 0, score = 0, mode, recordsRows = 0;
 bool destroyWnd = false, nextLvl = false, activeKey = false;
 float xAngle = 2.0, yAngle = 1.0;
-int blockHeight = 20, blockWidth = 50, process = INITPROC, lvlsPassed, lvls, bonusAmount = 0, ballsAmount = 0, normalModeLvlPassed = 0;
+int blockHeight = 20, blockWidth = 50, process = INITPROC, lvlsPassed, lvls, bonusAmount = 0, ballsAmount = 0, normalModeLvlPassed = 1;
 //50 20
+int visiblePart = 2, page = 0;
+
 unsigned char keyS;
 unsigned int BG;
 
@@ -72,6 +77,8 @@ void MouseMove(int ax, int ay) {
 	xMousePos = ax;
 }
 
+int tempCount = 0;
+
 void display();
 void timer(int);
 void reshape(int, int);
@@ -93,7 +100,8 @@ void init() {
 }
 
 GLuint bgTexture, playBtnTex, recBtnTex, exitBtnTex, menuBtnTex,
-lvlBtnTex[10], normalBtnTex, trainBtnTex, nextLvlBtnTex, backBtnTex, blocksTex[4];
+lvlBtnTex[10], normalBtnTex, trainBtnTex, nextLvlBtnTex, backBtnTex, blocksTex[4],
+prevBtnTex, nextBtnTex;
 
 GLuint load_texture(const char *apFileName) {
 	GLuint texture;
@@ -106,7 +114,7 @@ GLuint load_texture(const char *apFileName) {
 
 void loadLvlBtnsTextures() {
 	char buff[3];
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < lvls; i++) {
 		char path[15] = "";
 		char namePart[10] = "lvlBtn_";
 		_itoa(i + 1, buff, 10);
@@ -138,6 +146,8 @@ void loadImages() {
 	nextLvlBtnTex = load_texture("nextLvlBtn.jpg");
 	normalBtnTex = load_texture("normalModeBtn.jpg");
 	backBtnTex = load_texture("backBtn.jpg");
+	prevBtnTex = load_texture("prevBtn.jpg");
+	nextBtnTex = load_texture("nextBtn.jpg");
 	loadBlocksTextures();
 	loadLvlBtnsTextures();
 }
@@ -150,14 +160,14 @@ void MouseMoveClick(int btn, int state, int ax, int ay) {
 }
 
 int main(int argc, char *argv[]) {
-	setlocale(LC_ALL, "RUSSIAN");
+	setlocale(LC_ALL, "");
 	srand(time(NULL));
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
 	glutInitWindowPosition(50, 50);
 	glutInitWindowSize(windowWidth, windowHeight);
 	glutCreateWindow("Arcanoid");
-	loadImages();
+	
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
 	glutPassiveMotionFunc(MouseMove);
@@ -210,7 +220,8 @@ void printText(int xPos, int yPos, char *str) {
 
 void enterRecordName(unsigned char key) {
 	static int x = windowWidth / 2, s = 0;
-	printText(windowWidth / 2 - strlen("Enter Your Name : "), windowHeight / 4, "Enter Your Name : ");
+	printText(windowWidth / 2 - strlen("YOU SET THE RECORD") * 6, windowHeight / 6, "YOU SET THE RECORD");
+	printText(windowWidth / 2 - strlen("Enter Your Name : ")*5, windowHeight / 4, "Enter Your Name : ");
 	if (activeKey) {
 		if (key == 8 && s > 0) {
 			s--;
@@ -239,7 +250,7 @@ void keyBoardFunc(unsigned char key, int x, int y) {
 	if (key == 13 && process == ENTERTEXT) {
 		addRecord();
 		saveRecords();
-		process = SHOWRECORDS;
+		process = GAMEOVERPROC;
 	}
 	keyS = key;
 	activeKey = true;
@@ -247,7 +258,6 @@ void keyBoardFunc(unsigned char key, int x, int y) {
 
 void setLvlsInfo() {//Считывание кол-ва пройденных уровней и общего кол-ва уровней
 	availableLvls = readFile("progress.txt");
-	lvls = readFile("lvlsAmount.txt");
 }
 
 void saveProgress() {
@@ -256,6 +266,8 @@ void saveProgress() {
 		fprintf(file, "%d", availableLvls);
 		fclose(file);
 	}
+	else
+		return;
 }
 
 void sortRecords() {
@@ -276,6 +288,8 @@ void saveRecords() {
 			fprintf(file, "%d.%s %d\n", records[i].priority, records[i].name, records[i].score);
 		}
 	}
+	else
+		return;
 }
 
 void readRecords() {
@@ -288,6 +302,8 @@ void readRecords() {
 			}
 		}
 	}
+	else 
+		return;
 }
 
 void showRecords() {
@@ -305,12 +321,27 @@ void showRecords() {
 		}
 	}
 	else
-		printText(xPos, yPos, "Рекордов не установлено");
+		printText(windowWidth / 2 - strlen("NO RECORDS!!!")*6, windowHeight / 3, "NO RECORDS!!!");
 	backBtn.CreateButton();
 	if (backBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP) {
 		process = MENUPROC;
 		btnStart = -1;
 	}
+}
+
+int countAvailableLvls() {
+	FILE *file = NULL;
+	int tempCount = -1;
+	char txt[5] = ".txt", numBuff[3] = "";
+	do {
+		tempCount++;
+		char path[11] = "lvl_";
+		_itoa(tempCount + 1, numBuff, 10);
+		strcat(path, numBuff);
+		strcat(path, txt);
+		file = fopen(path, "r");
+	} while (file != NULL);
+	return tempCount;
 }
 
 int readFile(char *path) {
@@ -386,6 +417,8 @@ void initSubMenuButtons() {
 	menuBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, menuBtnTex);
 	nextLvlBtn.setButtonPosition(windowWidth / 2 + subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, nextLvlBtnTex);
 	backBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW / 2, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, backBtnTex);
+	nextPageBtn.setButtonPosition(windowWidth / 2 + subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, nextBtnTex);
+	prevPageBtn.setButtonPosition(windowWidth / 2 - 2*subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, prevBtnTex);
 }
 
 void addSubMenuButtons() {
@@ -403,13 +436,13 @@ void addBall() {
 
 void loadLvl(int i) {
 	char lvlPath[10] = "lvl_", lvl[4] = "";
-	_itoa(i + 1, lvl, 10);
+	_itoa(i, lvl, 10);
 	strcat(lvlPath, lvl);
 	strcat(lvlPath, ".txt");
 	process = GAMEPROC;
 	btnStart = -1;
 	yAngle = 1.0;
-	if (mode == TRAINMODE || i == 0) {
+	if (mode == TRAINMODE || i == 1) {
 		lifes = 3;
 		score = 0;
 	}
@@ -420,8 +453,6 @@ void loadLvl(int i) {
 }
 
 void subMenu() {
-	char *lvlPath;
-
 	addSubMenuButtons();
 	printText(windowWidth / 2 - strlen("Score : 10000") * 6, windowHeight / 4, "Score : ");
 	printText(windowWidth / 2, windowHeight / 4, score);
@@ -430,27 +461,43 @@ void subMenu() {
 		btnStart = -1;
 	}
 	else if (nextLvlBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP) {
-		loadLvl(trainModeLvlPassed);
+		loadLvl(currentTrainLvl);
 		btnStart = -1;
 	}
 }
 
 void initLvlMenu() {
 	int lvlBtnH = 60, lvlBtnW = 80, xSpacing = 120, ySpacing = 30, t = 0;
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < lvls; i++) {
 		if ((i) % 2 == 0 && i != 0) {
 			ySpacing += 3 * lvlBtnH / 2;
 			xSpacing = 120;
 			t = 0;
 		}
+		if (i == visiblePart) {
+			xSpacing = 120, ySpacing = 30, t = 0;
+		}
 		xSpacing += t * (lvlBtnW + 80);
 		lvlBtns[i].setButtonPosition(xSpacing, ySpacing, lvlBtnW, lvlBtnH, lvlBtnTex[i]);
 		t++;
+		
 	}
 }
 
 void addLvlMenu() {
-	for (int i = 0; i < 10; i++)
+	if (lvls > 2) {
+		nextPageBtn.CreateButton();
+		prevPageBtn.CreateButton();
+	}
+	if (nextPageBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP && page < lvls/visiblePart-1) {
+		page++;
+		btnStart = -1;
+	}
+	if (prevPageBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP && page > 0) {
+		page--;
+		btnStart = -1;
+	}
+	for (int i = page*visiblePart; i < page*visiblePart + visiblePart; i++)
 		lvlBtns[i].CreateButton();
 	backBtn.CreateButton();
 }
@@ -474,9 +521,11 @@ void selectGameMode() {
 	if (btnStart == GLUT_LEFT_BUTTON) {
 		for (int i = 0; i < 2; i++) {
 			if (gameModeButtons[i].isClicked(x, y) && btnState == GLUT_UP) {
+				if (tempCount > 0)
+					tempCount = 2;
 				if (i == 0) {
 					process = NORMALMODE;
-					normalModeLvlPassed = 0;
+					normalModeLvlPassed = 1;
 					mode = NORMALMODE;
 				}
 				if (i == 1) {
@@ -485,9 +534,9 @@ void selectGameMode() {
 				}
 				return;
 			}
-			if (backBtn.isClicked(x, y) && btnState == GLUT_UP)
-				process = MENUPROC;
 		}
+		if (backBtn.isClicked(x, y) && btnState == GLUT_UP)
+			process = MENUPROC;
 	}
 }
 
@@ -505,6 +554,8 @@ void menu() {
 }
 
 void initFunctions() {
+	lvls = countAvailableLvls();
+	loadImages();
 	readRecords();
 	initLvlMenu();
 	initMenuButtons();
@@ -563,12 +614,12 @@ bool isTouch(int i, int j) {
 	return false;
 }
 
-int setScore(int lifes) {
+int setScore(int lifes, int bonusK) {
 	if (lifes == 1)
-		return 10;
+		return 10 * bonusK;
 	if (lifes == 2)
-		return 20;
-	return 30;
+		return 20 * bonusK;
+	return 30 * bonusK;
 }
 
 void collision() {
@@ -580,7 +631,7 @@ void collision() {
 					xAngle *= -1;
 				blocks[j].durability--;
 				blocks[j].tex = blocksTex[blocks[j].durability - 1];
-				score += setScore(lifes);
+				score += setScore(lifes, bonusK);
 			}
 			if (blocks[j].durability == 0) {
 				if (hasBonus(j, index))
@@ -607,13 +658,13 @@ bool isLvlOpen(int lvl) {
 
 void selectLvl() {
 	if (btnStart == GLUT_LEFT_BUTTON) {
-		for (int i = 0; i < 10; i++) {
+		for (int i = page*visiblePart; i < page*visiblePart + visiblePart; i++) {
 			if (lvlBtns[i].isClicked(x, y) && btnState == GLUT_UP) {
-				if (isLvlOpen(i + 1)) {
-					if (availableLvls = i + 1)
+				currentTrainLvl = i + 1;
+				if (isLvlOpen(currentTrainLvl)) {
+					if (availableLvls == currentTrainLvl)
 						nextLvl = true;
-					loadLvl(i);
-					trainModeLvlPassed = i;
+					loadLvl(currentTrainLvl);
 				}
 				break;
 			}
@@ -649,6 +700,20 @@ void initBlocks(char *lvlPath) {
 				xSpasing += blockWidth + 5;
 		}
 	}
+	else {
+		return;
+	}
+}
+
+bool isRecord() {
+	if (recordsRows < 10)
+		return true;
+	for (int i = 0; i < recordsRows; i++) {
+		if (score > records[i].score) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void clearData() {
@@ -661,14 +726,21 @@ void clearData() {
 }
 
 void lvlPassed(int mode) {
-	if (mode == NORMALMODE) {
+	if (mode == NORMALMODE && normalModeLvlPassed < lvls) {
 		process = NORMALMODE;
 		normalModeLvlPassed++;
 	}
-	else {
+	else if (isRecord() && mode == NORMALMODE) {
+		process = ENTERTEXT;
+		strcpy(record.name, "");
+	}
+	else
+		process = GAMEOVERPROC;
+
+	if(mode == TRAINMODE) {
 		if (nextLvl) {
 			availableLvls++;
-			trainModeLvlPassed++;
+			currentTrainLvl++;
 		}
 		nextLvl = false;
 		process = SUBMENUPROC;
@@ -787,7 +859,7 @@ void applyBonus(int bonusType) {
 	if (bonusType == 0)
 		plateWidth += plateWidth / 10;
 	if (bonusType == 1)
-		balls[0].radius = 9;
+		bonusK = 2;
 	if (bonusType == 2)
 		lifes++;
 }
@@ -816,20 +888,9 @@ void activeBonuses() {
 	}
 }
 
-void printGameInfo() {
-	printText(windowWidth / 2, windowHeight - 60, score);
-	printText(windowWidth / 2, windowHeight - 30, lifes);
-}
-
-bool isRecord() {
-	if (recordsRows < 10)
-		return true;
-	for (int i = 0; i < recordsRows; i++) {
-		if (score > records[i].score) {
-			return true;
-		}
-	}
-	return false;
+void printGameInfo(int x, int y) {
+	printText(x, y - 60, score);
+	printText(x, y - 30, lifes);
 }
 
 void addRecord() {
@@ -846,15 +907,15 @@ void addRecord() {
 
 void game() {
 	if (lifes > 0) {
-		printGameInfo();
+		printGameInfo(windowWidth / 2, windowHeight);
 		drawBall();
 		collision();
-
 		activeBonuses();
 		drawPlate();
 		ViewBlocks();
 	}
 	else {
+		tempCount++;
 		if (isRecord() && mode == NORMALMODE) {
 			process = ENTERTEXT;
 			strcpy(record.name, "");
@@ -862,7 +923,18 @@ void game() {
 		else
 			process = SUBMENUPROC;
 		clearData();
+		btnStart = -1;
 	}
+}
+
+void printGameOverInfo() {
+	menuBtn.CreateButton();
+	printText(windowWidth / 2 - strlen("GAME OVER!") * 6, windowHeight / 5, "GAME OVER!");
+	printText(windowWidth / 2 - strlen("YOU'VE PASSED ALL LEVELES") * 6, windowHeight / 4, "YOU'VE PASSED ALL LEVELES");
+	printText(windowWidth / 2 - strlen("YOUR SCORE :  ") * 6, windowHeight / 3, "YOU SCORE : ");
+	printText(windowWidth / 2 + strlen("       10000")*6, windowHeight / 3, score);
+	if (menuBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP)
+		process = MENUPROC;
 }
 
 void display() {
@@ -881,6 +953,7 @@ void display() {
 		selectLvl();
 		break;
 	case NORMALMODE:
+		
 		loadLvl(normalModeLvlPassed);
 		break;
 	case SELECTMODEPROC:
@@ -893,6 +966,8 @@ void display() {
 		initFunctions();
 		break;
 	case GAMEPROC:
+		if (tempCount > 0)
+			tempCount = 2;
 		glutSetCursor(GLUT_CURSOR_NONE);
 		game();
 		break;
@@ -902,14 +977,16 @@ void display() {
 	case ENTERTEXT:
 		enterRecordName(keyS);
 		break;
+	case GAMEOVERPROC:
+		printGameOverInfo();
+		break;
 	case EXIT:
 		glutDestroyWindow(1);
 		break;
 	}
 	if (process != EXIT)
 		glutSwapBuffers();
-	btnStart = -1;
-	//ShowCursor(true);
+	
 }
 
 void reshape(int w, int h) {
@@ -928,9 +1005,9 @@ void reshape(int w, int h) {
 }
 
 
-
-
-
+//
+//
+//
 //#include <iostream>
 //#include <windows.h>  
 //#include <gl\GL.h>
@@ -955,7 +1032,6 @@ void reshape(int w, int h) {
 //
 //void MouseMove(int ax, int ay) {
 //	ax -= 180;
-//	//ay += 180;
 //	rotate_x = ay;
 //	rotate_y = ax;
 //	glutPostRedisplay();
@@ -990,8 +1066,8 @@ void reshape(int w, int h) {
 //
 //
 //	glBindTexture(GL_TEXTURE_2D, texture1);
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_LINEAR);
+//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_NEAREST);
 //	gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGB, image1->sizeX, image1->sizeY, GL_RGB, GL_UNSIGNED_BYTE, image1->data);
 //}
 //
@@ -1032,6 +1108,7 @@ void reshape(int w, int h) {
 //
 //	glEnable(GL_TEXTURE_2D);
 //	glBindTexture(GL_TEXTURE_2D, Textures[0]);
+//	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 128, 128, 0, GL_RGB, GL_UNSIGNED_BYTE, Textures[0]);
 //
 //	glLoadIdentity();
 //
@@ -1044,7 +1121,7 @@ void reshape(int w, int h) {
 //	glRotatef(rotate_y, 0.0, 1.0, 0.0);
 //	//"Б"
 //
-//	/*glColor3d(1, 0, 0);
+//	glColor3d(1, 0, 0);
 //	glBegin(GL_QUAD_STRIP);
 //	glNormal3f(0.0, 0.0, 1.0);
 //	glVertex3f(-2.1, 4.6, 1.01); glTexCoord2d(0, 0);
@@ -1133,50 +1210,60 @@ void reshape(int w, int h) {
 //	glVertex3f(1.5, 3.6, -0.01); glTexCoord2d(1, 1);
 //	glVertex3f(1.5, 3.6, 1.01); glTexCoord2d(1, 0);
 //	glEnd();
-//	*/
+//	
 //
-//	/*float r1 = 1.0, r2 = 2.0, r = 1.0;
+//	float r1 = 1.0, r2 = 2.0, r = 1.0;
 //	glBegin(GL_POINTS);
 //	for (float j = 0; j < 1; j += 0.01) {
 //		for (float i = 0.0; i <= 2*3.1415; i += 0.01) {
 //			glTexCoord2d(sin(i)*r1, cos(i)*r1);
 //			glVertex3f((sin(i)*r1), (cos(i)*r1), j);
+//			glTexCoord2d(sin(i)*r, cos(i)*r);
 //			glVertex3f((sin(i)*r), (cos(i)*r), 0);
 //			glVertex3f((sin(i)*r), (cos(i)*r), 1);
 //			glVertex3f((sin(i)*r2), (cos(i)*r2), j);
 //		}
 //		r += 0.01;
-//	}*/
+//	}
+//	glEnd();
 //		
 //		
-//		
-//			float r1 = 1.5, r2 = 2.5, r = 1.5;
-//			float threePI = 3 * 3.1415, twoPI = 2*3.1415;
-//	//"З"
-//			glBegin(GL_POINTS);
-//			for (float j = 0; j < 1; j += 0.01) {
-//				for (float i = 0.0; i <= threePI / 2; i += 0.01) {
-//					glTexCoord2d(sin(i)*r1, cos(i)*r1);
-//					glVertex3f((sin(i)*r1), (cos(i)*r1), j);
-//					glVertex3f((sin(i)*r), (cos(i)*r), 0);
-//					glVertex3f((sin(i)*r), (cos(i)*r), 1);
-//					glVertex3f((sin(i)*r2), (cos(i)*r2), j);
-//				}
-//				r += 0.01;
-//			}
-//			r = 1.5;
-//			for (float j = 0; j < 1; j += 0.01) {
-//				for (float i = twoPI / 2; i >= -threePI/12; i -= 0.01) {
-//					glTexCoord2d(sin(i)*r1, cos(i)*r1);
-//					glVertex3f((sin(i)*r1), 2 * r1 + (cos(i)*r1) + 1, j);
-//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 0);
-//					glVertex3f((sin(i)*r2), 2 * r2 + (cos(i)*r2) - 1, j);
-//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 1);
-//				}
-//				r += 0.01;
-//			}
-//			glEnd();
-//			glFlush();
+//	//		float r1 = 1.5, r2 = 2.5, r = 1.5;
+//	//		float threePI = 3 * 3.1415, twoPI = 2*3.1415;
+//	////"З"
+//	//		
+//	//		/*glTexCoord2d(0, 1);
+//	//		glTexCoord2d(1, 1);
+//	//		glTexCoord2d(1, 0);*/
+//
+//	//		glBegin(GL_POINTS);
+//	//		for (float j = 0; j < 1; j += 0.01) {
+//	//		
+//	//			for (float i = 0.0; i <= threePI / 2; i += 0.01) {
+//	//				//glTexCoord3d(sin(i)*r1, cos(i)*r1, j);
+//	//				glVertex3f((sin(i)*r1), (cos(i)*r1), j);
+//	//				//glTexCoord3d(sin(i)*r, cos(i)*r, 0);
+//	//				glVertex3f((sin(i)*r), (cos(i)*r), 0);
+//	//				glVertex3f((sin(i)*r), (cos(i)*r), 1);
+//	//				//glTexCoord3d(sin(i)*r2, cos(i)*r2, j);
+//	//				glVertex3f((sin(i)*r2), (cos(i)*r2), j);
+//	//			}
+//	//			r += 0.01;
+//	//		}
+//	//		r = 1.5;
+//	//		for (float j = 0; j < 1; j += 0.01) {
+//	//			for (float i = twoPI / 2; i >= -threePI/12; i -= 0.01) {
+//	//			//	glTexCoord2d(sin(i)*r1, 2 * r1 + (cos(i)*r1) + 1);
+//	//				glVertex3f((sin(i)*r1), 2 * r1 + (cos(i)*r1) + 1, j);
+//	//				//glTexCoord2d(sin(i)*r, 2 * r1 + (cos(i)*r) + 1);
+//	//				glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 0);
+//	//				glVertex3f((sin(i)*r2), 2 * r2 + (cos(i)*r2) - 1, j);
+//	//				glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 1);
+//	//			}
+//	//			r += 0.01;
+//	//		}
+//	//		glEnd();
+//		glFlush();
 //		
 //	glutSwapBuffers();
 //}
@@ -1200,4 +1287,5 @@ void reshape(int w, int h) {
 //	glutMainLoop();
 //
 //
-//	return 0 }
+//	return 0;
+//}
