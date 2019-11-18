@@ -23,8 +23,6 @@ bool Button::isClicked(float xMousePos, float yMousePos) {
 
 
 void Button::CreateButton() {
-	/*glColor3f(1.0, 1.0, 0.0);
-	glRectf(cx, cy, cx + width, cy + height);*/
 	glColor3f(1.0, 1.0, 1.0);
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, text);

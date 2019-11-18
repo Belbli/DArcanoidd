@@ -39,10 +39,11 @@ bool destroyWnd = false, nextLvl = false, activeKey = false;
 float xAngle = 2.0, yAngle = 1.0;
 int blockHeight = 20, blockWidth = 50, process = INITPROC, lvlsPassed, lvls, bonusAmount = 0, ballsAmount = 0, normalModeLvlPassed = 1;
 //50 20
+int coins = 0;
 int visiblePart = 2, lvlsPage = 0, shopPage = 0;
 
 unsigned char keyS;
-unsigned int BG;
+
 
 struct Ball {
 	int radius = 7;
@@ -80,7 +81,6 @@ void MouseMove(int ax, int ay) {
 	xMousePos = ax;
 }
 
-int tempCount = 0;
 
 void display();
 void timer(int);
@@ -92,6 +92,7 @@ void saveProgress();
 void addRecord();
 void saveRecords();
 void keyBoardFunc(unsigned char key, int x, int y);
+void specialKeysFunc(int key, int x, int y);
 void clearData();
 
 void init() {
@@ -131,7 +132,7 @@ GLuint *loadTextureArr(int amount, char *nameSubStr) {
 }
 
 void loadImages() {
-	bgTexture = load_texture("2.png");
+	bgTexture = load_texture("bg.png");
 	menuBtnTex = load_texture("menuBtn.jpg");
 	playBtnTex = load_texture("playBtn.jpg");
 	recBtnTex = load_texture("recBtn.jpg");
@@ -171,6 +172,7 @@ int main(int argc, char *argv[]) {
 	glutPassiveMotionFunc(MouseMove);
 	glutMouseFunc(MouseMoveClick);
 	glutKeyboardFunc(keyBoardFunc);
+	glutSpecialFunc(specialKeysFunc);
 	glutTimerFunc(0, timer, 0);
 	init();
 	glutMainLoop();
@@ -237,21 +239,48 @@ void enterRecordName(unsigned char key) {
 	printText(x, windowHeight / 2, record.name);
 }
 
+void specialKeysFunc(int key, int x, int y) {
+	switch (key) {
+	case GLUT_KEY_LEFT:
+		if (process == TRAINMODE && lvlsPage > 0)
+			lvlsPage--;
+		if (process == CHOOSEPLATEPROC && shopPage > 0)
+			shopPage--;
+		break;
+	case GLUT_KEY_RIGHT:
+		if (process == TRAINMODE && lvlsPage < lvls / visiblePart - 1)
+			lvlsPage++;
+		if (process == CHOOSEPLATEPROC && shopPage < plateTexesAmount - 1)
+			shopPage++;
+		break;
+	default:
+		return;
+	}
+}
 void keyBoardFunc(unsigned char key, int x, int y) {
-	if (key == 27 && process == MENUPROC) {
-		exit(0);
-	}
-	if (key == 27) {
-		clearData();
-		process = MENUPROC;
-	}
-	if (key == 13 && process == ENTERTEXT) {
-		addRecord();
-		saveRecords();
-		process = GAMEOVERPROC;
-	}
 	keyS = key;
 	activeKey = true;
+	btnStart = -1;
+	switch (key) {
+		case 27:
+			if (process == MENUPROC)
+				exit(0);
+			clearData();
+			process = MENUPROC;
+			break;
+		case 13:
+			if (process == ENTERTEXT) {
+				addRecord();
+				saveRecords();
+				process = GAMEOVERPROC;
+				break;
+			}
+			if(process == CHOOSEPLATEPROC)
+				currentPlateTex = plateTexes[shopPage];
+			break;
+	default:
+		break;
+	}
 }
 
 void setLvlsInfo() {//Считывание кол-ва пройденных уровней и общего кол-ва уровней
@@ -374,7 +403,7 @@ char *loadLvl(char *path) {
 		return dest;
 	}
 	else
-		process = SELECTLVLPROC;
+		process = TRAINMODE;
 	return NULL;
 }
 
@@ -418,8 +447,8 @@ void initSubMenuButtons() {
 	int subMenuBtnH = 40, subMenuBtnW = 80;
 	menuBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, menuBtnTex);
 	nextLvlBtn.setButtonPosition(windowWidth / 2 + subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, nextLvlBtnTex);
-	selectBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW/2, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, selectBtnTex);
-	backBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW / 2, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, backBtnTex);
+	selectBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW/2, 3 * windowHeight / 4 - subMenuBtnH, subMenuBtnW, subMenuBtnH, selectBtnTex);
+	backBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW / 2, 3 * windowHeight / 4 + subMenuBtnH, subMenuBtnW, subMenuBtnH, backBtnTex);
 	nextPageBtn.setButtonPosition(windowWidth / 2 + subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, nextBtnTex);
 	prevPageBtn.setButtonPosition(windowWidth / 2 - 2*subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, prevBtnTex);
 }
@@ -529,8 +558,6 @@ void selectGameMode() {
 	if (btnStart == GLUT_LEFT_BUTTON) {
 		for (int i = 0; i < 2; i++) {
 			if (gameModeButtons[i].isClicked(x, y) && btnState == GLUT_UP) {
-				if (tempCount > 0)
-					tempCount = 2;
 				if (i == 0) {
 					process = NORMALMODE;
 					normalModeLvlPassed = 1;
@@ -578,13 +605,40 @@ void initFunctions() {
 	process = MENUPROC;
 }
 
+void drawPlateSkins(int curPlatePage, int maxPage) {
+	if (curPlatePage > 0 && curPlatePage < maxPage) {
+		drawTexture(windowWidth / 2 - 5 * plateWidth / 2, windowHeight / 3, plateWidth, plateHeight, plateTexes[curPlatePage-1]);
+		drawTexture(windowWidth / 2 - plateWidth, windowHeight / 3 - plateHeight / 2, plateWidth*2, plateHeight*2, plateTexes[curPlatePage]);
+		drawTexture(windowWidth / 2 + 3 * plateWidth / 2, windowHeight / 3, plateWidth, plateHeight, plateTexes[curPlatePage + 1]);
+		return;
+	}
+	if (curPlatePage == 0) {
+		drawTexture(windowWidth / 2 - plateWidth, windowHeight / 3 - plateHeight / 2, plateWidth * 2, plateHeight * 2, plateTexes[curPlatePage]);
+		drawTexture(windowWidth / 2 + 3 * plateWidth / 2, windowHeight / 3, plateWidth, plateHeight, plateTexes[curPlatePage + 1]);
+		return;
+	}
+	if (curPlatePage == maxPage) {
+		drawTexture(windowWidth / 2 - plateWidth, windowHeight / 3 - plateHeight / 2, plateWidth * 2, plateHeight * 2, plateTexes[curPlatePage]);
+		drawTexture(windowWidth / 2 - 5 * plateWidth / 2, windowHeight / 3, plateWidth, plateHeight, plateTexes[curPlatePage - 1]);
+		return;
+	}
+	
+}
+
 void choosePlate() {
 	flipping(shopPage, plateTexesAmount - 1);
 	selectBtn.CreateButton();
-	if (btnStart == GLUT_DOWN)
+	backBtn.CreateButton();
+	drawPlateSkins(shopPage, plateTexesAmount - 1);
+	if (btnStart == GLUT_DOWN) {
 		if (selectBtn.isClicked(x, y) && btnState == GLUT_UP)
 			currentPlateTex = plateTexes[shopPage];
-	drawTexture(windowWidth / 2 - plateWidth, windowHeight / 2, plateWidth*2, plateHeight*2, plateTexes[shopPage]);
+		if (backBtn.isClicked(x, y) && btnState == GLUT_UP)
+			process = MENUPROC;
+		else
+			return;
+	}
+	return;
 }
 
 bool levelPassed() {
@@ -648,6 +702,16 @@ void collision() {
 	int index;
 	for (int i = 0; i < ballsAmount; i++) {
 		for (int j = 0; j < blockAmount; j++) {
+			/*if (balls[i].y + balls[i].radius > blocks[j].yb && balls[i].y + balls[i].radius < blocks[j].yb + blockHeight) {
+				if (balls[i].x % 2 == 1)
+					balls[i].x++;
+				if (balls[i].x + balls[i].radius == blocks[j].xb || balls[i].x - balls[i].radius == blocks[j].xb + blockWidth)
+					xAngle *= -1;
+			}
+			if (balls[i].x + balls[i].radius > blocks[j].xb && balls[i].x + balls[i].radius < blocks[j].xb + blockWidth) {
+				if (balls[i].y + balls[i].radius == blocks[j].yb || balls[i].y - balls[i].radius == blocks[j].yb + blockHeight)
+					yAngle *= -1;
+			}*/
 			if (isTouch(i, j)) {
 				if (!verticalRebound(j))
 					xAngle *= -1;
@@ -748,6 +812,7 @@ void clearData() {
 }
 
 void lvlPassed(int mode) {
+	coins = score / 10;
 	if (mode == NORMALMODE && normalModeLvlPassed < lvls) {
 		process = NORMALMODE;
 		normalModeLvlPassed++;
@@ -937,7 +1002,6 @@ void game() {
 		ViewBlocks();
 	}
 	else {
-		tempCount++;
 		if (isRecord() && mode == NORMALMODE) {
 			process = ENTERTEXT;
 			strcpy(record.name, "");
@@ -960,10 +1024,11 @@ void printGameOverInfo() {
 }
 
 void display() {
-
 	glClear(GL_COLOR_BUFFER_BIT);
 	glLoadIdentity();
+	
 	drawTexture(0, 0, windowWidth, windowHeight, bgTexture);
+	printText(windowWidth - strlen("10000")*8, 20, coins);
 	if (process != GAMEPROC)
 		glutSetCursor(GLUT_CURSOR_LEFT_ARROW);
 	switch (process) {
@@ -975,7 +1040,6 @@ void display() {
 		selectLvl();
 		break;
 	case NORMALMODE:
-		
 		loadLvl(normalModeLvlPassed);
 		break;
 	case SELECTMODEPROC:
@@ -988,8 +1052,6 @@ void display() {
 		initFunctions();
 		break;
 	case GAMEPROC:
-		if (tempCount > 0)
-			tempCount = 2;
 		glutSetCursor(GLUT_CURSOR_NONE);
 		game();
 		break;
