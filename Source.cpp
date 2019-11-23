@@ -30,10 +30,10 @@ using namespace std;
 Button playBtn, recordsBtn, exitBtn, nextLvlBtn, menuBtn, replayBtn, 
 choosePlateBtn, lvlBtns[10], gameModeButtons[2], backBtn, nextPageBtn,
 buyBtn, prevPageBtn, selectBtn;
-int windowWidth = 480, windowHeight = 600;
+int windowWidth = 490, windowHeight = 600;
 int bonusK = 1, plateTexesAmount;
 int plateHeight = 15;
-int x = -1, y = -1, btnWidth = 150, btnState, btnStart, btnPressed = -1, plateWidth = windowWidth / 5, xLeftPlatePos, xRightPlatePos, lifes = 3;
+int x = -1, y = -1, btnWidth = 150, btnState, btnStart, btnPressed = -1, plateWidth = windowWidth / 6, xLeftPlatePos, xRightPlatePos, lifes = 3;
 int xMousePos = 0, yPlatePos = 3 * windowHeight / 4 + 5, yPrevPlatePos = 0, currentTrainLvl = 1, availableLvls = 0;
 int blockAmount = 0, score = 0, mode, recordsRows = 0;
 bool destroyWnd = false, nextLvl = false, activeKey = false;
@@ -52,7 +52,7 @@ struct Ball {
 	int x;
 	int y;
 	int xSpeed = 2.0;
-	int ySpeed = 1.0;
+	int ySpeed = -1.0;
 	bool move;
 }ball;
 
@@ -92,7 +92,6 @@ void reshape(int, int);
 void initBlocks(char *lvlPath);
 void setLvlsInfo();
 int readFile(char *path);
-void saveProgress();
 void addRecord();
 void saveRecords();
 void keyBoardFunc(unsigned char key, int x, int y);
@@ -223,26 +222,25 @@ void printText(int xPos, int yPos, char *str) {
 	glColor3f(0.0, 0.0, 0.0);
 	renderBM(xPos, yPos, GLUT_BITMAP_TIMES_ROMAN_24, str);
 }
+int s = 0, xEnterningTextPos = windowWidth / 2;
 
 void enterRecordName(unsigned char key) {
-	static int x = windowWidth / 2, s = 0;
 	printText(windowWidth / 2 - strlen("YOU SET THE RECORD") * 6, windowHeight / 6, "YOU SET THE RECORD");
 	printText(windowWidth / 2 - strlen("Enter Your Name : ")*5, windowHeight / 4, "Enter Your Name : ");
-	if (activeKey) {
+	if (activeKey && key != 13) {
+		xEnterningTextPos = windowWidth / 2 - strlen(record.name) * 4;
 		if (key == 8 && s > 0) {
 			s--;
 			record.name[s] = '\0';
-			x += 8;
 		}
 		else {
 			record.name[s] = key;
 			s++;
 			record.name[s] = '\0';
-			x -= 8;
 		}
 		activeKey = false;
 	}
-	printText(x, windowHeight / 2, record.name);
+	printText(xEnterningTextPos, windowHeight / 2, record.name);
 }
 
 void specialKeysFunc(int key, int x, int y) {
@@ -263,6 +261,7 @@ void specialKeysFunc(int key, int x, int y) {
 		return;
 	}
 }
+
 void keyBoardFunc(unsigned char key, int x, int y) {
 	keyS = key;
 	activeKey = true;
@@ -355,8 +354,8 @@ void showRecords() {
 	}
 	else
 		printText(windowWidth / 2 - strlen("NO RECORDS!!!")*6, windowHeight / 3, "NO RECORDS!!!");
-	backBtn.CreateButton();
-	if (backBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP) {
+	backBtn.ShowBtn();
+	if (backBtn.isClicked(x, y, btnState) && btnStart == GLUT_LEFT_BUTTON) {
 		process = MENUPROC;
 		btnStart = -1;
 	}
@@ -414,7 +413,7 @@ char *loadLvl(char *path, int strLen) {
 }
 
 void setBonus(int blockNumber) {
-	bonus.bonusType = 3;
+	bonus.bonusType = rand() % 4;
 	bonus.x = blocks[blockNumber].xb;
 	bonus.y = blocks[blockNumber].yb;
 	bonus.move = false;
@@ -424,7 +423,7 @@ void setBonus(int blockNumber) {
 void initBonuses() {
 	int num;
 	for (int i = 0; i < blockAmount; i++) {
-		num = rand() % 7;
+		num = rand() % 10;
 		if (num % 6 == 0) {
 			setBonus(i);
 			bonuses.push_back(bonus);
@@ -442,11 +441,10 @@ void initMenuButtons() {
 }
 
 void showMenu() {
-	initMenuButtons();
-	playBtn.CreateButton();
-	choosePlateBtn.CreateButton();
-	recordsBtn.CreateButton();
-	exitBtn.CreateButton();
+	playBtn.ShowBtn();
+	choosePlateBtn.ShowBtn();
+	recordsBtn.ShowBtn();
+	exitBtn.ShowBtn();
 }
 
 void initSubMenuButtons() {
@@ -462,14 +460,17 @@ void initSubMenuButtons() {
 
 void addSubMenuButtons() {
 	if(mode != NORMALMODE)
-		nextLvlBtn.CreateButton();
-	menuBtn.CreateButton();
+		nextLvlBtn.ShowBtn();
+	menuBtn.ShowBtn();
 }
 
 void addBall() {
 	ball.x = xLeftPlatePos + plateWidth / 2;
 	ball.y = yPlatePos - ball.radius;
-	ball.move = false;
+	if (ballsAmount == 0)
+		ball.move = false;
+	else
+		ball.move = true;
 	balls.push_back(ball);
 	ballsAmount++;
 }
@@ -496,13 +497,15 @@ void subMenu() {
 	addSubMenuButtons();
 	printText(windowWidth / 2 - strlen("Score : 10000") * 6, windowHeight / 4, "Score : ");
 	printText(windowWidth / 2, windowHeight / 4, score);
-	if (menuBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP) {
-		process = MENUPROC;
-		btnStart = -1;
-	}
-	else if (nextLvlBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP && mode != NORMALMODE) {
-		loadLvl(currentTrainLvl);
-		btnStart = -1;
+	if (btnStart == GLUT_LEFT_BUTTON) {
+		if (menuBtn.isClicked(x, y, btnState)) {
+			process = MENUPROC;
+			btnStart = -1;
+		}
+		else if (nextLvlBtn.isClicked(x, y, btnState) && mode != NORMALMODE) {
+			loadLvl(currentTrainLvl);
+			btnStart = -1;
+		}
 	}
 }
 
@@ -527,24 +530,27 @@ void initLvlMenu() {
 void flipping(int &currentPage, int maxPage) {
 	int lvlsPage = 0;
 	if (lvls > 2) {
-		nextPageBtn.CreateButton();
-		prevPageBtn.CreateButton();
+		nextPageBtn.ShowBtn();
+		prevPageBtn.ShowBtn();
 	}
-	if (nextPageBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP && currentPage < maxPage) {
-		currentPage++;
-		btnStart = -1;
-	}
-	if (prevPageBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP && currentPage > 0) {
-		currentPage--;
-		btnStart = -1;
+	if (btnStart == GLUT_LEFT_BUTTON) {
+		if (nextPageBtn.isClicked(x, y, btnState) && currentPage < maxPage) {
+			currentPage++;
+			btnStart = -1;
+		}
+		if (prevPageBtn.isClicked(x, y, btnState) && currentPage > 0) {
+			currentPage--;
+			btnStart = -1;
+		}
+
 	}
 }
 
 void addLvlMenu() {
 	flipping(lvlsPage, lvls / visiblePart - 1);
 	for (int i = lvlsPage*visiblePart; i < lvlsPage*visiblePart + visiblePart; i++)
-		lvlBtns[i].CreateButton();
-	backBtn.CreateButton();
+		lvlBtns[i].ShowBtn();
+	backBtn.ShowBtn();
 }
 
 void initGameModeMenu() {
@@ -556,16 +562,16 @@ void initGameModeMenu() {
 
 void showGameModeMenu() {
 	for (int i = 0; i < 2; i++) {
-		gameModeButtons[i].CreateButton();
+		gameModeButtons[i].ShowBtn();
 	}
-	backBtn.CreateButton();
+	backBtn.ShowBtn();
 }
 
 void selectGameMode() {
 	showGameModeMenu();
 	if (btnStart == GLUT_LEFT_BUTTON) {
 		for (int i = 0; i < 2; i++) {
-			if (gameModeButtons[i].isClicked(x, y) && btnState == GLUT_UP) {
+			if (gameModeButtons[i].isClicked(x, y, btnState)) {
 				if (i == 0) {
 					process = NORMALMODE;
 					normalModeLvlPassed = 1;
@@ -578,7 +584,7 @@ void selectGameMode() {
 				return;
 			}
 		}
-		if (backBtn.isClicked(x, y) && btnState == GLUT_UP)
+		if (backBtn.isClicked(x, y, btnState))
 			process = MENUPROC;
 	}
 }
@@ -586,15 +592,15 @@ void selectGameMode() {
 void menu() {
 	showMenu();
 	if (btnStart == GLUT_LEFT_BUTTON) {
-		if (playBtn.isClicked(x, y) && btnState == GLUT_UP) {
+		if (playBtn.isClicked(x, y, btnState)) {
 			process = SELECTMODEPROC;
 			score = 0;
 		}
-		else if (choosePlateBtn.isClicked(x, y) && btnState == GLUT_UP)
+		else if (choosePlateBtn.isClicked(x, y, btnState))
 			process = CHOOSEPLATEPROC;
-		else if (recordsBtn.isClicked(x, y) && btnState == GLUT_UP)
+		else if (recordsBtn.isClicked(x, y, btnState))
 			process = SHOWRECORDS;
-		else if (exitBtn.isClicked(x, y) && btnState == GLUT_UP)
+		else if (exitBtn.isClicked(x, y, btnState))
 			process = EXIT;
 	}
 
@@ -644,6 +650,7 @@ void initFunctions() {
 	coins = readFile("coins.txt");
 	loadImages();
 	readRecords();
+	initMenuButtons();
 	initLvlMenu();
 	initMenuButtons();
 	setLvlsInfo();
@@ -676,11 +683,11 @@ void drawPlateSkins(int curPlatePage, int maxPage) {
 void choosePlate() {
 	flipping(shopPage, plateTexesAmount - 1);
 	if(purchased[shopPage] == '1')
-		selectBtn.CreateButton();
+		selectBtn.ShowBtn();
 	else {
-		buyBtn.CreateButton();
+		buyBtn.ShowBtn();
 		if(btnStart == GLUT_DOWN)
-			if (buyBtn.isClicked(x, y) && btnState == GLUT_UP && coins >= shopPage * 150) {
+			if (buyBtn.isClicked(x, y, btnState) && coins >= shopPage * 150) {
 				purchased[shopPage] = '1';
 				coins -= shopPage * 150;
 				btnStart = -1;
@@ -688,12 +695,12 @@ void choosePlate() {
 				saveProgress("coins.txt", coins);
 			}
 	}
-	backBtn.CreateButton();
+	backBtn.ShowBtn();
 	drawPlateSkins(shopPage, plateTexesAmount - 1);
 	if (btnStart == GLUT_DOWN) {
-		if (selectBtn.isClicked(x, y) && btnState == GLUT_UP)
+		if (selectBtn.isClicked(x, y, btnState))
 			currentPlateTex = plateTexes[shopPage];
-		if (backBtn.isClicked(x, y) && btnState == GLUT_UP)
+		if (backBtn.isClicked(x, y, btnState))
 			process = MENUPROC;
 		else
 			return;
@@ -805,7 +812,7 @@ bool isLvlOpen(int lvl) {
 void selectLvl() {
 	if (btnStart == GLUT_LEFT_BUTTON) {
 		for (int i = lvlsPage*visiblePart; i < lvlsPage*visiblePart + visiblePart; i++) {
-			if (lvlBtns[i].isClicked(x, y) && btnState == GLUT_UP) {
+			if (lvlBtns[i].isClicked(x, y, btnState)) {
 				currentTrainLvl = i + 1;
 				if (isLvlOpen(currentTrainLvl)) {
 					if (availableLvls == currentTrainLvl)
@@ -814,7 +821,7 @@ void selectLvl() {
 				}
 				break;
 			}
-			if (backBtn.isClicked(x, y) && btnState == GLUT_UP)
+			if (backBtn.isClicked(x, y, btnState))
 				process = SELECTMODEPROC;
 		}
 	}
@@ -852,12 +859,11 @@ void initBlocks(char *lvlPath) {
 }
 
 bool isRecord() {
-	if (recordsRows < 10)
+	if (recordsRows < 10) 
 		return true;
 	for (int i = 0; i < recordsRows; i++) {
-		if (score > records[i].score) {
+		if (score > records[i].score) 
 			return true;
-		}
 	}
 	return false;
 }
@@ -962,6 +968,7 @@ bool ballLose(int x, int y, int index) {
 		}
 		else {
 			lifes--;
+			balls[index].move = false;
 		}
 		return true;
 		if (lifes == 0)
@@ -971,34 +978,31 @@ bool ballLose(int x, int y, int index) {
 }
 
 void ballMotion() {
-	if (lifes == 2)
-		lifes = 2;
-		if (btnStart == GLUT_LEFT_BUTTON) {
-			btnStart = -1;
-			for (int i = 0; i < ballsAmount; i++) {
-				if (!balls[i].move) {
-					balls[i].move = true;
-					
-					balls[i].ySpeed = -1;
-				}
-			}
-		}
+	if (btnStart == GLUT_LEFT_BUTTON) {
+		btnStart = -1;
 		for (int i = 0; i < ballsAmount; i++) {
-			if (balls[i].move == false) {
-				balls[i].x = xLeftPlatePos + plateWidth / 2;
-				balls[i].y = yPlatePos - balls[i].radius;
-			}
-			else {
-				if (!ballLose(balls[i].x, balls[i].y, i)) {
-					balls[i].x += balls[i].xSpeed;
-					balls[i].y += balls[i].ySpeed;
-					if (plateCollision(balls[i].x, balls[i].y, balls[i].radius))
-						plateRebound(i);
-					wallsRebound(balls[i].x, balls[i].y, balls[i].radius, i);
-				}
+			if (!balls[i].move) {
+				balls[i].move = true;
+				balls[i].ySpeed = -1;
 			}
 		}
 	}
+	for (int i = 0; i < ballsAmount; i++) {
+		if (balls[i].move == false) {
+			balls[i].x = xLeftPlatePos + plateWidth / 2;
+			balls[i].y = yPlatePos - balls[i].radius;
+		}
+		else {
+			if (!ballLose(balls[i].x, balls[i].y, i)) {
+				balls[i].x += balls[i].xSpeed;
+				balls[i].y += balls[i].ySpeed;
+				if (plateCollision(balls[i].x, balls[i].y, balls[i].radius))
+					plateRebound(i);
+				wallsRebound(balls[i].x, balls[i].y, balls[i].radius, i);
+			}
+		}
+	}
+}
 
 void drawBall(int index) {
 	glBegin(GL_TRIANGLE_FAN);
@@ -1015,7 +1019,6 @@ void drawBalls() {
 	ballMotion();
 	glColor3f(0.0, 1.0, 0.0);
 	for (int i = 0; i < ballsAmount; i++) {
-		if (balls[i].move || i == 0)
 			drawBall(i);
 	}	
 }
@@ -1085,6 +1088,8 @@ void game() {
 		coins += score / 10;
 		saveProgress("coins.txt", coins);
 		if (isRecord() && mode == NORMALMODE) {
+			s = 0;
+			xEnterningTextPos = windowWidth / 2;
 			process = ENTERTEXT;
 			strcpy(record.name, "");
 		}
@@ -1095,15 +1100,14 @@ void game() {
 	}
 }
 
-int c = 0;
-
 void printGameOverInfo() {
-	menuBtn.CreateButton();
+	menuBtn.ShowBtn();
 	printText(windowWidth / 2 - strlen("GAME OVER!") * 6, windowHeight / 5, "GAME OVER!");
-	printText(windowWidth / 2 - strlen("YOU'VE PASSED ALL LEVELES") * 6, windowHeight / 4, "YOU'VE PASSED ALL LEVELES");
+	if(normalModeLvlPassed == lvls)
+		printText(windowWidth / 2 - strlen("YOU'VE PASSED ALL LEVELES") * 6, windowHeight / 4, "YOU'VE PASSED ALL LEVELES");
 	printText(windowWidth / 2 - strlen("YOUR SCORE :  ") * 6, windowHeight / 3, "YOU SCORE : ");
 	printText(windowWidth / 2 + strlen("       10000")*6, windowHeight / 3, score);
-	if (menuBtn.isClicked(x, y) && btnStart == GLUT_LEFT_BUTTON && btnState == GLUT_UP) {
+	if (menuBtn.isClicked(x, y, btnState) && btnStart == GLUT_LEFT_BUTTON) {
 		process = MENUPROC;
 		btnStart = -1;
 	}
@@ -1128,8 +1132,6 @@ void display() {
 	}
 	switch (process) {
 	case MENUPROC:
-		if (c == 1)
-			c = 2;
 		menu();
 		break;
 	case TRAINMODE:
@@ -1170,7 +1172,7 @@ void display() {
 	}
 	if (process != EXIT)
 		glutSwapBuffers();
-	
+	btnState = -1;
 }
 
 void reshape(int w, int h) {
@@ -1179,9 +1181,9 @@ void reshape(int w, int h) {
 }
 
 
-//
-//
-//
+ 
+
+
 //#include <iostream>
 //#include <windows.h>  
 //#include <gl\GL.h>
@@ -1231,7 +1233,7 @@ void reshape(int w, int h) {
 //	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 128.0);
 //	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 //
-//	AUX_RGBImageRec* image1 = auxDIBImageLoad("22.bmp");
+//	AUX_RGBImageRec* image1 = auxDIBImageLoad("123.bmp");
 //	if (image1 == 0) exit(1);
 //
 //	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -1263,6 +1265,18 @@ void reshape(int w, int h) {
 //
 //}
 //
+//void drawTexture(float aX, float aY, float aZ, float aW, float aH, GLuint aTextID) {
+//	glColor3f(1.0, 1.0, 1.0);
+//	glEnable(GL_TEXTURE_2D);
+//	glBindTexture(GL_TEXTURE_2D, aTextID);
+//	glBegin(GL_QUADS);
+//	glTexCoord2i(1, 1); glVertex3f(aX + aW, aY + aH, aZ);
+//	glTexCoord2i(0, 1); glVertex3f(aX, aY + aH, aZ);
+//	glTexCoord2i(0, 0); glVertex3f(aX, aY, aZ);
+//	glTexCoord2i(1, 0); glVertex3f(aX + aW, aY, aZ);
+//	glEnd();
+//	glDisable(GL_TEXTURE_2D);
+//}
 //
 //void Initialization() {
 //	glClear(GL_COLOR_BUFFER_BIT);
@@ -1279,10 +1293,12 @@ void reshape(int w, int h) {
 //void displays() {
 //	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 //	glClearColor(1.0, 1.0, 1.0, 0.0);
-//
-//	glEnable(GL_TEXTURE_2D);
-//	glBindTexture(GL_TEXTURE_2D, Textures[0]);
-//	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 128, 128, 0, GL_RGB, GL_UNSIGNED_BYTE, Textures[0]);
+//	drawTexture(-2.6, -2.6, 0.0, 5.2, 9.2, Textures[0]);
+//	drawTexture(-2.6, -2.6, 1.0, 5.2, 9.2, Textures[0]);
+//	glColor3f(1, 0, 1);
+//	/*glEnable(GL_TEXTURE_2D);
+//	glBindTexture(GL_TEXTURE_2D, Textures[0]);*/
+//	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 128, 128, 0, GL_RGB, GL_UNSIGNED_BYTE, Textures[0]);
 //
 //	glLoadIdentity();
 //
@@ -1293,9 +1309,9 @@ void reshape(int w, int h) {
 //	
 //	glRotatef(rotate_x, 1.0, 0.0, 0.0);
 //	glRotatef(rotate_y, 0.0, 1.0, 0.0);
-//	//"Á"
-//
-//	glColor3d(1, 0, 0);
+//	"Á"
+//	
+//	/*glColor3d(1, 0, 0);
 //	glBegin(GL_QUAD_STRIP);
 //	glNormal3f(0.0, 0.0, 1.0);
 //	glVertex3f(-2.1, 4.6, 1.01); glTexCoord2d(0, 0);
@@ -1384,9 +1400,9 @@ void reshape(int w, int h) {
 //	glVertex3f(1.5, 3.6, -0.01); glTexCoord2d(1, 1);
 //	glVertex3f(1.5, 3.6, 1.01); glTexCoord2d(1, 0);
 //	glEnd();
-//	
+//	*/
 //
-//	float r1 = 1.0, r2 = 2.0, r = 1.0;
+//	/*float r1 = 1.0, r2 = 2.0, r = 1.0;
 //	glBegin(GL_POINTS);
 //	for (float j = 0; j < 1; j += 0.01) {
 //		for (float i = 0.0; i <= 2*3.1415; i += 0.01) {
@@ -1399,44 +1415,83 @@ void reshape(int w, int h) {
 //		}
 //		r += 0.01;
 //	}
-//	glEnd();
+//	glEnd();*/
 //		
 //		
-//	//		float r1 = 1.5, r2 = 2.5, r = 1.5;
-//	//		float threePI = 3 * 3.1415, twoPI = 2*3.1415;
-//	////"Ç"
-//	//		
-//	//		/*glTexCoord2d(0, 1);
-//	//		glTexCoord2d(1, 1);
-//	//		glTexCoord2d(1, 0);*/
+//			float r1 = 1.5, r2 = 2.5, r = 1.5;
+//			float threePI = 3 * 3.1415, twoPI = 2*3.1415;
+//	"Ç"
+//			
+//	
+//			
+//			glBegin(GL_POINTS);
+//			glColor3f(1, 1, 1);
+//			r = 0;
+//			for (float r = 0; r < 1.5; r += 0.01) {
+//				for (float i = 0.0; i <= twoPI; i += 0.01) {
 //
-//	//		glBegin(GL_POINTS);
-//	//		for (float j = 0; j < 1; j += 0.01) {
-//	//		
-//	//			for (float i = 0.0; i <= threePI / 2; i += 0.01) {
-//	//				//glTexCoord3d(sin(i)*r1, cos(i)*r1, j);
-//	//				glVertex3f((sin(i)*r1), (cos(i)*r1), j);
-//	//				//glTexCoord3d(sin(i)*r, cos(i)*r, 0);
-//	//				glVertex3f((sin(i)*r), (cos(i)*r), 0);
-//	//				glVertex3f((sin(i)*r), (cos(i)*r), 1);
-//	//				//glTexCoord3d(sin(i)*r2, cos(i)*r2, j);
-//	//				glVertex3f((sin(i)*r2), (cos(i)*r2), j);
-//	//			}
-//	//			r += 0.01;
-//	//		}
-//	//		r = 1.5;
-//	//		for (float j = 0; j < 1; j += 0.01) {
-//	//			for (float i = twoPI / 2; i >= -threePI/12; i -= 0.01) {
-//	//			//	glTexCoord2d(sin(i)*r1, 2 * r1 + (cos(i)*r1) + 1);
-//	//				glVertex3f((sin(i)*r1), 2 * r1 + (cos(i)*r1) + 1, j);
-//	//				//glTexCoord2d(sin(i)*r, 2 * r1 + (cos(i)*r) + 1);
-//	//				glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 0);
-//	//				glVertex3f((sin(i)*r2), 2 * r2 + (cos(i)*r2) - 1, j);
-//	//				glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 1);
-//	//			}
-//	//			r += 0.01;
-//	//		}
-//	//		glEnd();
+//					glVertex3f((sin(i)*r), (cos(i)*r), -0.1);
+//					glVertex3f((sin(i)*r), (cos(i)*r), 1.1);
+//				}
+//			}
+//
+//			r1 = 1.5;
+//			glColor3f(1, 1, 1);
+//			for (float r = 0; r < 1.5; r += 0.01) {
+//				for (float i = 0; i <= twoPI; i += 0.01) {
+//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, -0.1);
+//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 1.1);
+//				}
+//			}
+//
+//
+//			r = 1.35;
+//			glColor3f(1, 1, 1);
+//			for (float j = 0; j < 1.8; j += 0.01) {
+//				for (float i = -threePI / 4; i <= 0; i += 0.005) {
+//					glVertex3f((sin(i)*r), (cos(i)*r), -0.2);
+//					glVertex3f((sin(i)*r), (cos(i)*r), 1.5);
+//				}
+//				r += 0.013;
+//			}
+//			r = 2.5;
+//			
+//			for (float j = 0; j < 1.8; j += 0.01) {
+//				for (float i = twoPI/9.5; i <= threePI / 2; i += 0.005) {
+//					glColor3f(1, 0, 1);
+//					glVertex3f((sin(i)*r1), (cos(i)*r1), j/2);
+//					glVertex3f((sin(i)*r2), (cos(i)*r2), j/2);
+//					glColor3f(1, 1, 1);
+//					glVertex3f((sin(i)*r), (cos(i)*r), -0.2);
+//					glVertex3f((sin(i)*r), (cos(i)*r), 1.2);
+//				}
+//				r += 0.008;
+//			}
+//			
+//		
+//			r = 1.4;
+//			glColor3f(1, 1, 1);
+//			for (float j = 0; j < 1.8; j += 0.01) {
+//				for (float i = -twoPI / 2; i <= -twoPI/8; i += 0.005) {
+//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, -0.20);
+//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 1.2);
+//				}
+//				r += 0.013;
+//			}
+//			
+//			r = 2.5;
+//			for (float j = 0; j < 1.3; j += 0.01) {
+//				for (float i = twoPI / 3; i >= -threePI/12; i -= 0.005) {
+//					glColor3f(1, 1, 1);
+//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 1.2);
+//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, -0.2);
+//					glColor3f(1, 0, 1);
+//					glVertex3f((sin(i)*r1), 2 * r1 + (cos(i)*r1) + 1, j/1.5);
+//					glVertex3f((sin(i)*r2), 2 * r2 + (cos(i)*r2) - 1, j/1.5);
+//				}
+//				r += 0.013;
+//			}
+//			glEnd();
 //		glFlush();
 //		
 //	glutSwapBuffers();
