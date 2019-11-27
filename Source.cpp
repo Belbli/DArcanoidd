@@ -10,7 +10,6 @@
 using namespace std;
 
 
-
 #define MENUPROC 100
 #define GAMEPROC 101
 #define SUBMENUPROC 102
@@ -28,21 +27,21 @@ using namespace std;
 using namespace std;
 
 Button playBtn, recordsBtn, exitBtn, nextLvlBtn, menuBtn, replayBtn, 
-choosePlateBtn, lvlBtns[10], gameModeButtons[2], backBtn, nextPageBtn,
-buyBtn, prevPageBtn, selectBtn;
-int windowWidth = 490, windowHeight = 600;
+choosePlateBtn, lvlBtns[14], gameModeButtons[2], backBtn, nextPageBtn,
+buyBtn, prevPageBtn, selectBtn, continueBtn;
+int windowWidth = 490, windowHeight = 600, lifeCost = 100;
 int bonusK = 1, plateTexesAmount;
 int plateHeight = 15;
 int x = -1, y = -1, btnWidth = 150, btnState, btnStart, btnPressed = -1, plateWidth = windowWidth / 6, xLeftPlatePos, xRightPlatePos, lifes = 3;
 int xMousePos = 0, yPlatePos = 3 * windowHeight / 4 + 5, yPrevPlatePos = 0, currentTrainLvl = 1, availableLvls = 0;
 int blockAmount = 0, score = 0, mode, recordsRows = 0;
-bool destroyWnd = false, nextLvl = false, activeKey = false;
+bool destroyWnd = false, maxAvailableLvl = false, activeKey = false;
 float xAngle = 2.0, yAngle = 1.0;
 int blockHeight = 20, blockWidth = 50, process = INITPROC, lvlsPassed, lvls, bonusAmount = 0, ballsAmount = 0, normalModeLvlPassed = 1;
 //50 20
 int coins = 50;
 char *purchased = NULL;
-int visiblePart = 2, lvlsPage = 0, shopPage = 0;
+int visiblePart = 10, lvlsPage = 0, shopPage = 0;
 
 unsigned char keyS;
 
@@ -60,6 +59,7 @@ struct Bonus {
 	int x;
 	int y;
 	int bonusType;
+	GLuint texture;
 	bool move;
 }bonus;
 
@@ -108,7 +108,8 @@ void init() {
 
 GLuint bgTexture, playBtnTex, recBtnTex, exitBtnTex, menuBtnTex,
 *lvlBtnTex, normalBtnTex, trainBtnTex, nextLvlBtnTex, backBtnTex, *blocksTex, *plateTexes,
-prevBtnTex, nextBtnTex, currentPlateTex, shopBtnTex, selectBtnTex, coinsTex, buyBtnTex;
+prevBtnTex, nextBtnTex, currentPlateTex, shopBtnTex, selectBtnTex, coinsTex, buyBtnTex,
+priceBgTex, bonusTexture, recordTex, adsBG, continueBtnTex, life, buyLifeTex;
 
 GLuint load_texture(const char *apFileName) {
 	GLuint texture;
@@ -122,7 +123,7 @@ GLuint load_texture(const char *apFileName) {
 GLuint *loadTextureArr(int amount, char *nameSubStr) {
 	char buff[3];
 	GLuint *dest = NULL;
-	dest = (GLuint*)realloc(dest, amount * sizeof(GLuint));
+	dest = (GLuint*)realloc(dest, (amount) * sizeof(GLuint));
 	for (int i = 0; i < amount; i++) {
 		char path[15] = "";
 		strcat(path, nameSubStr);
@@ -141,6 +142,7 @@ void loadImages() {
 	playBtnTex = load_texture("playBtn.jpg");
 	recBtnTex = load_texture("recBtn.jpg");
 	exitBtnTex = load_texture("exitBtn.jpg");
+	priceBgTex = load_texture("priceBG.jpg");
 	trainBtnTex = load_texture("trainModeBtn.jpg");
 	nextLvlBtnTex = load_texture("nextLvlBtn.jpg");
 	normalBtnTex = load_texture("normalModeBtn.jpg");
@@ -154,6 +156,12 @@ void loadImages() {
 	lvlBtnTex = loadTextureArr(lvls, "lvlBtn_");
 	currentPlateTex = load_texture("plate_1.jpg");
 	plateTexes = loadTextureArr(plateTexesAmount, "plate_");
+	bonusTexture = load_texture("bonusTex.jpg");
+	recordTex = load_texture("recordBG.jpg");
+	adsBG = load_texture("adsBG.jpg");
+	continueBtnTex = load_texture("continueBtn.jpg");
+	life = load_texture("life.jpg");
+	buyLifeTex = load_texture("buyLifeTex.jpg");
 }
 
 void MouseMoveClick(int btn, int state, int ax, int ay) {
@@ -170,8 +178,7 @@ int main(int argc, char *argv[]) {
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
 	glutInitWindowPosition(50, 50);
 	glutInitWindowSize(windowWidth, windowHeight);
-	glutCreateWindow("Arcanoid");
-	
+	glutCreateWindow("Arcanoid");	
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
 	glutPassiveMotionFunc(MouseMove);
@@ -192,6 +199,7 @@ void timer(int) {
 
 void drawTexture(int aX, int aY, int aW, int aH, GLuint aTextID) {
 	glColor3f(1.0, 1.0, 1.0);
+
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, aTextID);
 	glBegin(GL_QUADS);
@@ -201,6 +209,7 @@ void drawTexture(int aX, int aY, int aW, int aH, GLuint aTextID) {
 	glTexCoord2i(1, 1); glVertex2i(aX + aW, aY);
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
+
 }
 
 void renderBM(float x, float y, void *font, char *str) {
@@ -218,22 +227,22 @@ void printText(int xPos, int yPos, int info) {
 	renderBM(xPos, yPos, GLUT_BITMAP_TIMES_ROMAN_24, str);
 }
 
-void printText(int xPos, int yPos, char *str) {
-	glColor3f(0.0, 0.0, 0.0);
+void printText(int xPos, int yPos, char *str, float r = 0.0, float g = 0.0, float b = 0.0) {
+	glColor3f(r, g, b);
 	renderBM(xPos, yPos, GLUT_BITMAP_TIMES_ROMAN_24, str);
 }
 int s = 0, xEnterningTextPos = windowWidth / 2;
 
 void enterRecordName(unsigned char key) {
 	printText(windowWidth / 2 - strlen("YOU SET THE RECORD") * 6, windowHeight / 6, "YOU SET THE RECORD");
-	printText(windowWidth / 2 - strlen("Enter Your Name : ")*5, windowHeight / 4, "Enter Your Name : ");
+	printText(windowWidth / 2 - strlen("Enter Your Name : ")*6, windowHeight / 4, "Enter Your Name : ");
 	if (activeKey && key != 13) {
 		xEnterningTextPos = windowWidth / 2 - strlen(record.name) * 4;
 		if (key == 8 && s > 0) {
 			s--;
 			record.name[s] = '\0';
 		}
-		else {
+		else if(s+1 < 20){
 			record.name[s] = key;
 			s++;
 			record.name[s] = '\0';
@@ -241,6 +250,7 @@ void enterRecordName(unsigned char key) {
 		activeKey = false;
 	}
 	printText(xEnterningTextPos, windowHeight / 2, record.name);
+	printText(150, windowHeight / 2, "__________________");
 }
 
 void specialKeysFunc(int key, int x, int y) {
@@ -305,7 +315,6 @@ void saveProgress(char *fName, int value) {
 void sortRecords() {
 	for (int i = 0; i < recordsRows; i++) {
 		for (int j = i; j < recordsRows; j++) {
-			records[i].priority = i + 1;
 			if (records[i].score < records[j].score)
 				std::swap(records[i], records[j]);
 		}
@@ -317,6 +326,7 @@ void saveRecords() {
 	FILE *file = fopen("records.txt", "w");
 	if (file != NULL) {
 		for (int i = 0; i < recordsRows; i++) {
+			records[i].priority = i + 1;
 			fprintf(file, "%d.%s %d\n", records[i].priority, records[i].name, records[i].score);
 		}
 	}
@@ -340,16 +350,20 @@ void readRecords() {
 
 void showRecords() {
 	sortRecords();
-	int xPos = 60, yPos = 60;
+	drawTexture(40, 50, 420, 430, recordTex);
+	int xPos = 80, yPos = 120;
 	if (recordsRows > 0) {
 		for (int i = 0; i < recordsRows; i++) {
-			printText(xPos, yPos, records[i].priority);
+			char numBuff[7] = "";
+			_itoa(records[i].priority, numBuff, 10);
+			printText(xPos + (strlen("10") - strlen(numBuff))*10, yPos, records[i].priority);
 			xPos += 30;
 			printText(xPos, yPos, records[i].name);
-			xPos += 3 * windowWidth / 5;
-			printText(xPos, yPos, records[i].score);
+			xPos += 3 * windowWidth / 6;
+			_itoa(records[i].score, numBuff, 10);
+			printText(xPos + (strlen("10000")-strlen(numBuff))*9, yPos, records[i].score);
 			yPos += 30;
-			xPos = 60;
+			xPos = 80;
 		}
 	}
 	else
@@ -417,6 +431,7 @@ void setBonus(int blockNumber) {
 	bonus.x = blocks[blockNumber].xb;
 	bonus.y = blocks[blockNumber].yb;
 	bonus.move = false;
+	bonus.texture = bonusTexture;
 	bonusAmount++;
 }
 
@@ -456,6 +471,7 @@ void initSubMenuButtons() {
 	nextPageBtn.setButtonPosition(windowWidth / 2 + subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, nextBtnTex);
 	buyBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW/2, 3 * windowHeight / 4 - subMenuBtnH, subMenuBtnW, subMenuBtnH, buyBtnTex);
 	prevPageBtn.setButtonPosition(windowWidth / 2 - 2*subMenuBtnW, 3 * windowHeight / 4, subMenuBtnW, subMenuBtnH, prevBtnTex);
+	continueBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW / 2, 3 * windowHeight / 4 + subMenuBtnH, subMenuBtnW, subMenuBtnH, continueBtnTex);
 }
 
 void addSubMenuButtons() {
@@ -476,7 +492,7 @@ void addBall() {
 }
 
 void loadLvl(int i) {
-	char lvlPath[10] = "lvl_", lvl[4] = "";
+	char lvlPath[12] = "lvl_", lvl[4] = "";
 	_itoa(i, lvl, 10);
 	strcat(lvlPath, lvl);
 	strcat(lvlPath, ".txt");
@@ -513,7 +529,7 @@ void initLvlMenu() {
 	int lvlBtnH = 60, lvlBtnW = 80, xSpacing = 120, ySpacing = 30, t = 0;
 	for (int i = 0; i < lvls; i++) {
 		if ((i) % 2 == 0 && i != 0) {
-			ySpacing += 3 * lvlBtnH / 2;
+			ySpacing += 4 * lvlBtnH / 3;
 			xSpacing = 120;
 			t = 0;
 		}
@@ -523,13 +539,11 @@ void initLvlMenu() {
 		xSpacing += t * (lvlBtnW + 80);
 		lvlBtns[i].setButtonPosition(xSpacing, ySpacing, lvlBtnW, lvlBtnH, lvlBtnTex[i]);
 		t++;
-		
 	}
 }
 
 void flipping(int &currentPage, int maxPage) {
-	int lvlsPage = 0;
-	if (lvls > 2) {
+	if (lvls > 10) {
 		nextPageBtn.ShowBtn();
 		prevPageBtn.ShowBtn();
 	}
@@ -542,15 +556,46 @@ void flipping(int &currentPage, int maxPage) {
 			currentPage--;
 			btnStart = -1;
 		}
-
 	}
 }
 
 void addLvlMenu() {
-	flipping(lvlsPage, lvls / visiblePart - 1);
-	for (int i = lvlsPage*visiblePart; i < lvlsPage*visiblePart + visiblePart; i++)
+	flipping(lvlsPage, lvls / visiblePart);
+	int max;
+	if (lvlsPage == 0) {
+		max = 10;
+	}
+	else
+		max = lvlsPage*visiblePart + lvls - lvlsPage*visiblePart;
+
+	for (int i = lvlsPage*visiblePart; i < max; i++)
 		lvlBtns[i].ShowBtn();
 	backBtn.ShowBtn();
+}
+
+bool isLvlOpen(int lvl) {
+	if (lvl <= availableLvls)
+		return true;
+	return false;
+}
+
+void selectLvl() {
+	if (btnStart == GLUT_LEFT_BUTTON) {
+		for (int i = lvlsPage*visiblePart; i < lvlsPage*visiblePart + lvls - lvlsPage*visiblePart; i++) {
+			if (lvlBtns[i].isClicked(x, y, btnState)) {
+				currentTrainLvl = i + 1;
+				if (isLvlOpen(currentTrainLvl)) {
+					if (availableLvls == currentTrainLvl)
+						maxAvailableLvl = true;
+					loadLvl(currentTrainLvl);
+				}
+				break;
+			}
+			if (backBtn.isClicked(x, y, btnState))
+				process = SELECTMODEPROC;
+		}
+	}
+	btnState = -1;
 }
 
 void initGameModeMenu() {
@@ -679,12 +724,31 @@ void drawPlateSkins(int curPlatePage, int maxPage) {
 	
 }
 
+void showPrice(int page, bool redraw) {
+	static int w = 0, prevPage = -1;
+	int cost = 150 * page;
+	char price[6];
+	_itoa(cost, price, 10);
+	if (prevPage != page || redraw) {
+		prevPage = page;
+		w = 0;
+	}
+	if (w < 140)
+		w += 4;
+	drawTexture(windowWidth / 2 - w/2, windowHeight / 2, w, 40, priceBgTex);
+	printText(windowWidth / 2 - strlen(price)*6, windowHeight / 2 + 28, cost);
+}
 
 void choosePlate() {
+	static bool redraw = false;
 	flipping(shopPage, plateTexesAmount - 1);
-	if(purchased[shopPage] == '1')
+	if (purchased[shopPage] == '1') {
 		selectBtn.ShowBtn();
+		redraw = true;
+	}
 	else {
+		showPrice(shopPage, redraw);
+		redraw = false;
 		buyBtn.ShowBtn();
 		if(btnStart == GLUT_DOWN)
 			if (buyBtn.isClicked(x, y, btnState) && coins >= shopPage * 150) {
@@ -706,12 +770,6 @@ void choosePlate() {
 			return;
 	}
 	return;
-}
-
-bool levelPassed() {
-	if (blockAmount == 0)
-		return true;
-	return false;
 }
 
 bool hasBonus(int blockIndx, int &bonusIndex) {
@@ -769,16 +827,6 @@ void collision() {
 	int index;
 	for (int i = 0; i < ballsAmount; i++) {
 		for (int j = 0; j < blockAmount; j++) {
-			/*if (balls[i].y + balls[i].radius > blocks[j].yb && balls[i].y + balls[i].radius < blocks[j].yb + blockHeight) {
-				if (balls[i].x % 2 == 1)
-					balls[i].x++;
-				if (balls[i].x + balls[i].radius == blocks[j].xb || balls[i].x - balls[i].radius == blocks[j].xb + blockWidth)
-					xAngle *= -1;
-			}
-			if (balls[i].x + balls[i].radius > blocks[j].xb && balls[i].x + balls[i].radius < blocks[j].xb + blockWidth) {
-				if (balls[i].y + balls[i].radius == blocks[j].yb || balls[i].y - balls[i].radius == blocks[j].yb + blockHeight)
-					yAngle *= -1;
-			}*/
 			if (isTouch(i, j)) {
 				if (!verticalRebound(j))
 					balls[i].xSpeed *= -1;
@@ -800,30 +848,6 @@ void setBlockAmount(char *lvl) {
 	for (int i = 0; i < strlen(lvl); i++) {
 		if (lvl[i] != '0' && lvl[i] != '\n')
 			blockAmount++;
-	}
-}
-
-bool isLvlOpen(int lvl) {
-	if (lvl <= availableLvls)
-		return true;
-	return false;
-}
-
-void selectLvl() {
-	if (btnStart == GLUT_LEFT_BUTTON) {
-		for (int i = lvlsPage*visiblePart; i < lvlsPage*visiblePart + visiblePart; i++) {
-			if (lvlBtns[i].isClicked(x, y, btnState)) {
-				currentTrainLvl = i + 1;
-				if (isLvlOpen(currentTrainLvl)) {
-					if (availableLvls == currentTrainLvl)
-						nextLvl = true;
-					loadLvl(currentTrainLvl);
-				}
-				break;
-			}
-			if (backBtn.isClicked(x, y, btnState))
-				process = SELECTMODEPROC;
-		}
 	}
 }
 
@@ -892,14 +916,13 @@ void lvlPassed(int mode) {
 		process = GAMEOVERPROC;
 
 	if(mode == TRAINMODE) {
-		if (nextLvl) {
+		if (maxAvailableLvl) {
 			availableLvls++;
-			currentTrainLvl++;
 		}
-		nextLvl = false;
+		currentTrainLvl++;
+		maxAvailableLvl = false;
 		process = SUBMENUPROC;
 	}
-	yAngle = 1.0;
 	saveProgress("availableLvls.txt", availableLvls);
 	clearData();
 }
@@ -955,7 +978,7 @@ void plateRebound(int index) {
 void wallsRebound(int x, int y, int r, int index) {
 	if (x - r <= 0 || x + r >= windowWidth)
 		balls[index].xSpeed *= -1;
-	if (y + r <= 0)
+	if (y - r <= 0)
 		balls[index].ySpeed *= -1;
 }
 
@@ -1037,10 +1060,7 @@ void applyBonus(int bonusType) {
 void drawBonus(int bonusIndex) {
 	if (bonuses[bonusIndex].y < yPlatePos + 10) {
 		glColor3f(0.0, 1.0, 0.0);
-		glPointSize(20);
-		glBegin(GL_POINTS);
-		glVertex2f(bonuses[bonusIndex].x, bonuses[bonusIndex].y);
-		glEnd();
+		drawTexture(bonuses[bonusIndex].x, bonuses[bonusIndex].y, 20, 20, bonusTexture);
 		bonuses[bonusIndex].y++;
 		if (plateCollision(bonuses[bonusIndex].x, bonuses[bonusIndex].y, 0))
 			applyBonus(bonuses[bonusIndex].bonusType);
@@ -1060,7 +1080,13 @@ void activeBonuses() {
 
 void printGameInfo(int x, int y) {
 	printText(x, y - 60, score);
-	printText(x, y - 30, lifes);
+	int cx = windowWidth / 2 - lifes * 20;
+	for (int i = 0; i < lifes; i++) {
+		drawTexture(cx, windowHeight - 50, 30, 30, life);
+		cx += 50;
+	}
+	
+	//printText(x, y - 30, lifes);
 }
 
 void addRecord() {
@@ -1075,6 +1101,40 @@ void addRecord() {
 	records.push_back(record);
 }
 
+
+void showCoins() {
+	char buff[6] = "";
+	drawTexture(windowWidth - 100, 0, 100, 35, coinsTex);
+	_itoa(coins, buff, 10);
+	printText(windowWidth - strlen(buff) * 9 - 45, 27, coins);
+}
+
+int c = 0;
+
+bool showAds() {
+	char numBuff[7] = "";
+	_itoa(lifeCost, numBuff, 10);
+	showCoins();
+	glutSetCursor(GLUT_CURSOR_LEFT_ARROW);
+	drawTexture(windowWidth / 2 - 150, windowHeight / 2 - 100, 300, 200, adsBG);
+	drawTexture(windowWidth / 2 - 50, windowHeight / 2 + 45, 100, 30, buyLifeTex);
+	printText(windowWidth / 2 - strlen(numBuff) * 6, windowHeight / 2 + 70, numBuff, 0.0, 1.0, 0.0);
+	buyBtn.ShowBtn();
+	continueBtn.ShowBtn();
+	if (btnStart == GLUT_LEFT_BUTTON) {
+		if (coins >= 100 && buyBtn.isClicked(x, y, btnState)) {
+			coins -= lifeCost;
+			lifes++;
+			lifeCost *= 2;
+			process = GAMEPROC;
+			c++;
+		}
+		if (continueBtn.isClicked(x, y, btnState))
+			return false;
+	}
+	return true;
+}
+
 void game() {
 	if (lifes > 0) {
 		printGameInfo(windowWidth / 2, windowHeight);
@@ -1085,17 +1145,23 @@ void game() {
 		ViewBlocks();
 	}
 	else {
-		coins += score / 10;
-		saveProgress("coins.txt", coins);
-		if (isRecord() && mode == NORMALMODE) {
-			s = 0;
-			xEnterningTextPos = windowWidth / 2;
-			process = ENTERTEXT;
-			strcpy(record.name, "");
+		if (c > 0) {
+			c = 1;
 		}
-		else
-			process = SUBMENUPROC;
-		clearData();
+		if (!showAds()) {
+			coins += score / 10;
+			lifeCost = 100;
+			saveProgress("coins.txt", coins);
+			if (isRecord() && mode == NORMALMODE) {
+				s = 0;
+				xEnterningTextPos = windowWidth / 2;
+				process = ENTERTEXT;
+				strcpy(record.name, "");
+			}
+			else
+				process = SUBMENUPROC;
+			clearData();
+		}
 		btnStart = -1;
 	}
 }
@@ -1111,13 +1177,6 @@ void printGameOverInfo() {
 		process = MENUPROC;
 		btnStart = -1;
 	}
-}
-
-void showCoins() {
-	char buff[6] = "";
-	drawTexture(windowWidth - 100, 0, 100, 35, coinsTex);
-	_itoa(coins, buff, 10);
-	printText(windowWidth - strlen(buff) * 9 - 45, 27, coins);
 }
 
 void display() {
@@ -1179,342 +1238,3 @@ void reshape(int w, int h) {
 	if(w != windowWidth || h != windowHeight)
 		glutReshapeWindow(windowWidth, windowHeight);
 }
-
-
- 
-
-
-//#include <iostream>
-//#include <windows.h>  
-//#include <gl\GL.h>
-//#include <gl\GLU.h>
-//#include <GL\glut.h> 
-//#include "glaux.h"
-//#pragma comment(lib,"glaux.lib")
-//
-//using namespace std;
-//
-//int n = 0;
-//
-//float angle = 0.0f;
-//unsigned int Textures[1];
-//GLuint texture[1];
-//
-//int sX = 0, sY = 0;
-//bool MOUSE_CLICK = false;
-//double rotate_y = 0;
-//double rotate_x = 0;
-//bool A = true;
-//
-//void MouseMove(int ax, int ay) {
-//	ax -= 180;
-//	rotate_x = ay;
-//	rotate_y = ax;
-//	glutPostRedisplay();
-//}
-//	
-//	void resize(int w, int h) {
-//		glutPostRedisplay();
-//		if (h == 0)
-//			h = 1;
-//		float ratio = w * 1.0 / h;
-//		glMatrixMode(GL_PROJECTION);//Изменяем матрицу на проекционную для работы с данными этой самой матрицы
-//		glLoadIdentity();//Загружаем матрицу
-//		glViewport(0, 0, (GLsizei)w, (GLsizei)h);
-//		gluPerspective(45.0f, ratio, 0.1f, 90.0f);
-//		glMatrixMode(GL_MODELVIEW);//Возвращаем матрицу к нормальному виду
-//		glLoadIdentity();//Загружаем матрицу
-//	}
-//
-//void InitTexture(unsigned int& texture1)
-//{
-//	GLfloat mat_specular[] = { 1, 1, 1, 1 };
-//	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
-//	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 128.0);
-//	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-//
-//	AUX_RGBImageRec* image1 = auxDIBImageLoad("123.bmp");
-//	if (image1 == 0) exit(1);
-//
-//	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-//	glPixelZoom(1, 1);
-//	glGenTextures(1, &texture1);
-//
-//
-//	glBindTexture(GL_TEXTURE_2D, texture1);
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_LINEAR);
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_NEAREST);
-//	gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGB, image1->sizeX, image1->sizeY, GL_RGB, GL_UNSIGNED_BYTE, image1->data);
-//}
-//
-//void specialKeys(int key, int x, int y) {
-//
-//	if (key == GLUT_KEY_RIGHT)
-//		rotate_y -= 5;
-//
-//	else if (key == GLUT_KEY_LEFT)
-//		rotate_y += 5;
-//
-//	else if (key == GLUT_KEY_UP)
-//		rotate_x += 5;
-//
-//	else if (key == GLUT_KEY_DOWN)
-//		rotate_x -= 5;
-//
-//	glutPostRedisplay();
-//
-//}
-//
-//void drawTexture(float aX, float aY, float aZ, float aW, float aH, GLuint aTextID) {
-//	glColor3f(1.0, 1.0, 1.0);
-//	glEnable(GL_TEXTURE_2D);
-//	glBindTexture(GL_TEXTURE_2D, aTextID);
-//	glBegin(GL_QUADS);
-//	glTexCoord2i(1, 1); glVertex3f(aX + aW, aY + aH, aZ);
-//	glTexCoord2i(0, 1); glVertex3f(aX, aY + aH, aZ);
-//	glTexCoord2i(0, 0); glVertex3f(aX, aY, aZ);
-//	glTexCoord2i(1, 0); glVertex3f(aX + aW, aY, aZ);
-//	glEnd();
-//	glDisable(GL_TEXTURE_2D);
-//}
-//
-//void Initialization() {
-//	glClear(GL_COLOR_BUFFER_BIT);
-//	glClearColor(1.0, 1.0, 1.0, 0);
-//	glMatrixMode(GL_PROJECTION);
-//	glLoadIdentity();
-//	glShadeModel(GL_FLAT);
-//	glEnable(GL_CULL_FACE);
-//
-//
-//	glMatrixMode(GL_MODELVIEW);
-//}
-//
-//void displays() {
-//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//	glClearColor(1.0, 1.0, 1.0, 0.0);
-//	drawTexture(-2.6, -2.6, 0.0, 5.2, 9.2, Textures[0]);
-//	drawTexture(-2.6, -2.6, 1.0, 5.2, 9.2, Textures[0]);
-//	glColor3f(1, 0, 1);
-//	/*glEnable(GL_TEXTURE_2D);
-//	glBindTexture(GL_TEXTURE_2D, Textures[0]);*/
-//	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 128, 128, 0, GL_RGB, GL_UNSIGNED_BYTE, Textures[0]);
-//
-//	glLoadIdentity();
-//
-//	gluLookAt(0.0f, 10.0f, 20.0f,
-//			0.0f, 0.0f, 0.0f,
-//			0.0f, 5.0f, 4.0f);
-//	
-//	
-//	glRotatef(rotate_x, 1.0, 0.0, 0.0);
-//	glRotatef(rotate_y, 0.0, 1.0, 0.0);
-//	"Б"
-//	
-//	/*glColor3d(1, 0, 0);
-//	glBegin(GL_QUAD_STRIP);
-//	glNormal3f(0.0, 0.0, 1.0);
-//	glVertex3f(-2.1, 4.6, 1.01); glTexCoord2d(0, 0);
-//	glVertex3f(-1, 4.6, 1.01); glTexCoord2d(0, 1);
-//	glVertex3f(-2.1, -2.1, 1.01); glTexCoord2d(1, 1);
-//	glVertex3f(-1, -2.1, 1.01); glTexCoord2d(1, 0);
-//	glEnd();
-//
-//	glBegin(GL_QUAD_STRIP);
-//	glColor3d(0, 1, 0);
-//	glNormal3f(0.0, 0.0, 1.0);
-//	glVertex3f(-2.1, 4.6, -0.01); glTexCoord2d(0, 0);
-//	glVertex3f(-1, 4.6, -0.01); glTexCoord2d(0, 1);
-//	glVertex3f(-2.1, -2.1, -0.01); glTexCoord2d(1, 1);
-//	glVertex3f(-1, -2.1, -0.01); glTexCoord2d(1, 0);
-//	glEnd();
-//
-//	glBegin(GL_QUAD_STRIP);
-//	glColor3d(0, 0, 1);
-//	glNormal3f(-2.1, 0.0, 0.0);
-//	glVertex3f(-2.1, 4.6, -0.01); glTexCoord2d(0, 0);
-//	glVertex3f(-2.1, 4.6, 1.01); glTexCoord2d(0, 1);
-//	glVertex3f(-2.1, -2.1, -0.01); glTexCoord2d(1, 1);
-//	glVertex3f(-2.1, -2.1, 1.01); glTexCoord2d(1, 0);
-//	glEnd();
-//
-//	glBegin(GL_QUAD_STRIP);
-//	glColor3d(0, 0, 1);
-//	glNormal3f(-1.1, 0.0, 0.0);
-//	glVertex3f(-2.1, 4.6, -0.01); glTexCoord2d(0, 0);
-//	glVertex3f(-2.1, 4.6, 1.01); glTexCoord2d(0, 1);
-//	glVertex3f(1.5, 4.6, -0.01); glTexCoord2d(1, 1);
-//	glVertex3f(1.5, 4.6, 1.01); glTexCoord2d(1, 0);
-//	glEnd();
-//
-//	glBegin(GL_QUAD_STRIP);
-//	glColor3d(0, 0, 1);
-//	glNormal3f(-1.1, 0.0, 0.0);
-//	glVertex3f(-1.1, 4.6, -0.01); glTexCoord2d(0, 0);
-//	glVertex3f(-1.1, 4.6, 1.01); glTexCoord2d(0, 1);
-//	glVertex3f(-1.1, -2.1, -0.01); glTexCoord2d(1, 1);
-//	glVertex3f(-1.1, -2.1, 1.01); glTexCoord2d(1, 0);
-//	glEnd();
-//
-//	glColor3d(1, 0, 0);
-//	glBegin(GL_QUAD_STRIP);
-//	glNormal3f(0.0, 0.0, 1.0);
-//	glVertex3f(-2.1, 4.6, 1.01); glTexCoord2d(0, 0);
-//	glVertex3f(1.5, 4.6, 1.01); glTexCoord2d(0, 1);
-//	glVertex3f(-2.1, 3.6, 1.01); glTexCoord2d(1, 1);
-//	glVertex3f(1.5, 3.6, 1.01); glTexCoord2d(1, 0);
-//	glEnd();
-//
-//	glColor3d(1, 0, 0);
-//	glBegin(GL_QUAD_STRIP);
-//	glNormal3f(0.0, 0.0, 1.0);
-//	glVertex3f(-2.1, 4.6, -0.01); glTexCoord2d(0, 0);
-//	glVertex3f(1.5, 4.6, -0.01); glTexCoord2d(0, 1);
-//	glVertex3f(-2.1, 3.6, -0.01); glTexCoord2d(1, 1);
-//	glVertex3f(1.5, 3.6, -0.01); glTexCoord2d(1, 0);
-//	glEnd();
-//
-//	glBegin(GL_QUAD_STRIP);
-//	glColor3d(1, 0, 1);
-//	glNormal3f(-1.1, 0.0, 0.0);
-//	glVertex3f(-2.1, 3.6, -0.01); glTexCoord2d(0, 0);
-//	glVertex3f(-2.1, 3.6, 1.01); glTexCoord2d(0, 1);
-//	glVertex3f(1.5, 3.6, -0.01); glTexCoord2d(1, 1);
-//	glVertex3f(1.5, 3.6, 1.01); glTexCoord2d(1, 0);
-//	glEnd();
-//
-//	glBegin(GL_QUAD_STRIP);
-//	glColor3d(1, 0, 1);
-//	glNormal3f(-1.1, 0.0, 0.0);
-//	glVertex3f(-2.1, -2.1, -0.01); glTexCoord2d(0, 0);
-//	glVertex3f(-2.1, -2.1, 1.01); glTexCoord2d(0, 1);
-//	glVertex3f(-1.1, -2.1, -0.01); glTexCoord2d(1, 1);
-//	glVertex3f(-1.1, -2.1, 1.01); glTexCoord2d(1, 0);
-//	glEnd();
-//
-//	glBegin(GL_QUAD_STRIP);
-//	glColor3d(0, 0, 1);
-//	glNormal3f(-2.1, 0.0, 0.0);
-//	glVertex3f(1.5, 4.6, -0.01); glTexCoord2d(0, 0);
-//	glVertex3f(1.5, 4.6, 1.01); glTexCoord2d(0, 1);
-//	glVertex3f(1.5, 3.6, -0.01); glTexCoord2d(1, 1);
-//	glVertex3f(1.5, 3.6, 1.01); glTexCoord2d(1, 0);
-//	glEnd();
-//	*/
-//
-//	/*float r1 = 1.0, r2 = 2.0, r = 1.0;
-//	glBegin(GL_POINTS);
-//	for (float j = 0; j < 1; j += 0.01) {
-//		for (float i = 0.0; i <= 2*3.1415; i += 0.01) {
-//			glTexCoord2d(sin(i)*r1, cos(i)*r1);
-//			glVertex3f((sin(i)*r1), (cos(i)*r1), j);
-//			glTexCoord2d(sin(i)*r, cos(i)*r);
-//			glVertex3f((sin(i)*r), (cos(i)*r), 0);
-//			glVertex3f((sin(i)*r), (cos(i)*r), 1);
-//			glVertex3f((sin(i)*r2), (cos(i)*r2), j);
-//		}
-//		r += 0.01;
-//	}
-//	glEnd();*/
-//		
-//		
-//			float r1 = 1.5, r2 = 2.5, r = 1.5;
-//			float threePI = 3 * 3.1415, twoPI = 2*3.1415;
-//	"З"
-//			
-//	
-//			
-//			glBegin(GL_POINTS);
-//			glColor3f(1, 1, 1);
-//			r = 0;
-//			for (float r = 0; r < 1.5; r += 0.01) {
-//				for (float i = 0.0; i <= twoPI; i += 0.01) {
-//
-//					glVertex3f((sin(i)*r), (cos(i)*r), -0.1);
-//					glVertex3f((sin(i)*r), (cos(i)*r), 1.1);
-//				}
-//			}
-//
-//			r1 = 1.5;
-//			glColor3f(1, 1, 1);
-//			for (float r = 0; r < 1.5; r += 0.01) {
-//				for (float i = 0; i <= twoPI; i += 0.01) {
-//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, -0.1);
-//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 1.1);
-//				}
-//			}
-//
-//
-//			r = 1.35;
-//			glColor3f(1, 1, 1);
-//			for (float j = 0; j < 1.8; j += 0.01) {
-//				for (float i = -threePI / 4; i <= 0; i += 0.005) {
-//					glVertex3f((sin(i)*r), (cos(i)*r), -0.2);
-//					glVertex3f((sin(i)*r), (cos(i)*r), 1.5);
-//				}
-//				r += 0.013;
-//			}
-//			r = 2.5;
-//			
-//			for (float j = 0; j < 1.8; j += 0.01) {
-//				for (float i = twoPI/9.5; i <= threePI / 2; i += 0.005) {
-//					glColor3f(1, 0, 1);
-//					glVertex3f((sin(i)*r1), (cos(i)*r1), j/2);
-//					glVertex3f((sin(i)*r2), (cos(i)*r2), j/2);
-//					glColor3f(1, 1, 1);
-//					glVertex3f((sin(i)*r), (cos(i)*r), -0.2);
-//					glVertex3f((sin(i)*r), (cos(i)*r), 1.2);
-//				}
-//				r += 0.008;
-//			}
-//			
-//		
-//			r = 1.4;
-//			glColor3f(1, 1, 1);
-//			for (float j = 0; j < 1.8; j += 0.01) {
-//				for (float i = -twoPI / 2; i <= -twoPI/8; i += 0.005) {
-//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, -0.20);
-//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 1.2);
-//				}
-//				r += 0.013;
-//			}
-//			
-//			r = 2.5;
-//			for (float j = 0; j < 1.3; j += 0.01) {
-//				for (float i = twoPI / 3; i >= -threePI/12; i -= 0.005) {
-//					glColor3f(1, 1, 1);
-//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, 1.2);
-//					glVertex3f((sin(i)*r), 2 * r1 + (cos(i)*r) + 1, -0.2);
-//					glColor3f(1, 0, 1);
-//					glVertex3f((sin(i)*r1), 2 * r1 + (cos(i)*r1) + 1, j/1.5);
-//					glVertex3f((sin(i)*r2), 2 * r2 + (cos(i)*r2) - 1, j/1.5);
-//				}
-//				r += 0.013;
-//			}
-//			glEnd();
-//		glFlush();
-//		
-//	glutSwapBuffers();
-//}
-//
-//
-//int main(int argc, char* argv[]) {
-//
-//	glutInit(&argc, argv);
-//	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGBA);
-//	glutInitWindowSize(1000, 1000);
-//
-//	glutCreateWindow("8");
-//	glClearColor(1.0, 1.0, 1.0, 0);
-//	glEnable(GL_DEPTH_TEST);
-//	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-//	InitTexture(Textures[0]);
-//	glutDisplayFunc(displays);
-//	glutMotionFunc(MouseMove);
-//	glutSpecialFunc(specialKeys);
-//	glutReshapeFunc(resize);
-//	glutMainLoop();
-//
-//
-//	return 0;
-//}

@@ -11,6 +11,8 @@ void Button::setButtonPosition(int cx, int cy, int width, int height, GLuint tex
 	this->text = text;
 	curH = height;
 	curW = width;
+	curCX = cx;
+	curCY = cy;
 }
 
 bool Button::isClicked(float xMousePos, float yMousePos, int btnState) {
@@ -18,22 +20,22 @@ bool Button::isClicked(float xMousePos, float yMousePos, int btnState) {
 		if (btnState == GLUT_DOWN) {
 			curW -= width / 25;
 			curH -= height / 15;
-			cx += width / 50;
-			cy += height / 30;
+			curCX += width / 50;
+			curCY += height / 30;
 		}
 		if (btnState == GLUT_UP) {
 			curW = width;
 			curH = height;
-			cx -= width / 50;
-			cy -= height / 30;
+			curCX = cx;
+			curCY = cy;
 			return true;
 		}
 	}
-	else if (btnState == GLUT_UP && curH < height && curW < width) {
+	else if (btnState == GLUT_UP && curH != height && curW != width) {
 		curW = width;
 		curH = height;
-		cx -= width / 50;
-		cy -= height / 30;
+		curCX = cx;
+		curCY = cy;
 	}
 	return false;
 }
@@ -43,10 +45,10 @@ void Button::ShowBtn() {
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, text);
 	glBegin(GL_QUADS);
-	glTexCoord2i(1, 0); glVertex2i(cx + curW, cy + curH);
-	glTexCoord2i(0, 0); glVertex2i(cx, cy + curH);
-	glTexCoord2i(0, 1); glVertex2i(cx, cy);
-	glTexCoord2i(1, 1); glVertex2i(cx + curW, cy);
+	glTexCoord2i(1, 0); glVertex2i(curCX + curW, curCY + curH);
+	glTexCoord2i(0, 0); glVertex2i(curCX, curCY + curH);
+	glTexCoord2i(0, 1); glVertex2i(curCX, curCY);
+	glTexCoord2i(1, 1); glVertex2i(curCX + curW, curCY);
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
 

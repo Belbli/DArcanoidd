@@ -11,6 +11,8 @@ private:
 	int btnState;
 	int curW;
 	int curH;
+	int curCX;
+	int curCY;
 	GLuint text;
 
 public:
