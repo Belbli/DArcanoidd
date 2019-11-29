@@ -114,9 +114,9 @@ priceBgTex, bonusTexture, recordTex, adsBG, continueBtnTex, life, buyLifeTex;
 GLuint load_texture(const char *apFileName) {
 	GLuint texture;
 	texture = SOIL_load_OGL_texture(apFileName,
-		SOIL_LOAD_AUTO,
+		SOIL_LOAD_RGBA,
 		SOIL_CREATE_NEW_ID,
-		SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT);
+		SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_MULTIPLY_ALPHA | SOIL_FLAG_INVERT_Y);
 	return texture;
 }
 
@@ -160,7 +160,7 @@ void loadImages() {
 	recordTex = load_texture("recordBG.jpg");
 	adsBG = load_texture("adsBG.jpg");
 	continueBtnTex = load_texture("continueBtn.jpg");
-	life = load_texture("life.jpg");
+	life = load_texture("life.png");
 	buyLifeTex = load_texture("buyLifeTex.jpg");
 }
 
@@ -171,11 +171,20 @@ void MouseMoveClick(int btn, int state, int ax, int ay) {
 	btnState = state;
 }
 
+void bonusValidityPeriod() {
+	static int c = 0;
+	do {
+		Sleep(970);
+		c++;
+		cout << c;
+	} while (c < 15);
+}
+
 int main(int argc, char *argv[]) {
 	setlocale(LC_ALL, "");
 	srand(time(NULL));
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_ALPHA);
 	glutInitWindowPosition(50, 50);
 	glutInitWindowSize(windowWidth, windowHeight);
 	glutCreateWindow("Arcanoid");	
@@ -188,6 +197,7 @@ int main(int argc, char *argv[]) {
 	glutTimerFunc(0, timer, 0);
 	init();
 	glutMainLoop();
+
 	return 0;
 }
 
@@ -199,9 +209,11 @@ void timer(int) {
 
 void drawTexture(int aX, int aY, int aW, int aH, GLuint aTextID) {
 	glColor3f(1.0, 1.0, 1.0);
-
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, aTextID);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glBegin(GL_QUADS);
 	glTexCoord2i(1, 0); glVertex2i(aX + aW, aY + aH);
 	glTexCoord2i(0, 0); glVertex2i(aX, aY + aH);
@@ -303,10 +315,10 @@ void setLvlsInfo() {//Считывание кол-ва пройденных уровней и общего кол-ва уровн
 }
 
 void saveProgress(char *fName, int value) {
-	FILE *f = fopen(fName, "w+");
-	if (f != NULL) {
-		fprintf(f, "%d", value);
-		fclose(f);
+	FILE *bonusValidityPeriod = fopen(fName, "w+");
+	if (bonusValidityPeriod != NULL) {
+		fprintf(bonusValidityPeriod, "%d", value);
+		fclose(bonusValidityPeriod);
 	}
 	else
 		return;
@@ -652,10 +664,10 @@ void menu() {
 }
 
 void savePlateShopInfo() {
-	FILE *f = fopen("purchasedPlates.txt", "w");
-	if (f != NULL) {
-		fprintf(f, "%s", purchased);
-		fclose(f);
+	FILE *bonusValidityPeriod = fopen("purchasedPlates.txt", "w");
+	if (bonusValidityPeriod != NULL) {
+		fprintf(bonusValidityPeriod, "%s", purchased);
+		fclose(bonusValidityPeriod);
 	}
 	else
 		return;
@@ -668,12 +680,12 @@ int hasNewPlateSkins() {
 }
 
 void appendNewSkinsInfo(int differece) {
-	FILE *f = fopen("purchasedPlates.txt", "a+");
-	if (f != NULL) {
+	FILE *bonusValidityPeriod = fopen("purchasedPlates.txt", "a+");
+	if (bonusValidityPeriod != NULL) {
 		for (int i = 0; i < differece; i++) {
-			fprintf(f, "%d", 0);
+			fprintf(bonusValidityPeriod, "%d", 0);
 		}
-		fclose(f);
+		fclose(bonusValidityPeriod);
 	}
 	else
 		return;
@@ -798,7 +810,6 @@ bool verticalRebound(int blockIndex) {
 		if (balls[i].y + balls[i].radius == blocks[blockIndex].yb || balls[i].y - balls[i].radius - blockHeight == blocks[blockIndex].yb)
 			if (blocks[blockIndex].yb && balls[i].x >= blocks[blockIndex].xb && balls[i].x <= blocks[blockIndex].xb + blockWidth || balls[i].y - balls[i].radius == blocks[blockIndex].yb + blockHeight && balls[i].x >= blocks[blockIndex].xb && balls[i].x <= blocks[blockIndex].xb + blockWidth) {
 				balls[i].ySpeed *= -1;
-				cout << "xBall = " << balls[i].x << "  yBall = " << balls[i].y << "  blockX = " << blocks[i].xb << "  blockY = " << blocks[i].yb << endl;
 				return true;
 			}
 	}
@@ -1048,13 +1059,14 @@ void drawBalls() {
 
 void applyBonus(int bonusType) {
 	if (bonusType == 0)
-		plateWidth += plateWidth / 10;
+		plateWidth += plateWidth / 5;
 	if (bonusType == 1)
 		bonusK = 2;
 	if (bonusType == 2)
 		lifes++;
 	if (bonusType == 3)
 		addBall();
+	
 }
 
 void drawBonus(int bonusIndex) {
