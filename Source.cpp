@@ -12,7 +12,6 @@ using namespace std;
 
 #define MENUPROC 100
 #define GAMEPROC 101
-#define SUBMENUPROC 102
 #define SELECTLVLPROC 103
 #define TRAINMODE 104
 #define INITPROC 105 
@@ -26,8 +25,8 @@ using namespace std;
 
 using namespace std;
 
-Button playBtn, recordsBtn, exitBtn, nextLvlBtn, menuBtn, replayBtn, 
-choosePlateBtn, lvlBtns[14], gameModeButtons[2], backBtn, nextPageBtn,
+Button playBtn, recordsBtn, exitBtn, nextLvlBtn, menuBtn, replayBtn, *lvlBtns,
+choosePlateBtn, gameModeButtons[2], backBtn, nextPageBtn,
 buyBtn, prevPageBtn, selectBtn, continueBtn;
 int windowWidth = 490, windowHeight = 600, lifeCost = 100;
 int bonusK = 1, plateTexesAmount;
@@ -63,7 +62,7 @@ struct Bonus {
 	bool move;
 }bonus;
 
-struct block {
+struct Block {
 	int xb;
 	int yb;
 	int durability;
@@ -76,7 +75,7 @@ struct Record {
 	int score;
 }record;
 
-vector<block> blocks;
+vector<Block> blocks;
 vector<Bonus> bonuses;
 vector<Ball> balls;
 vector<Record> records;
@@ -111,7 +110,7 @@ GLuint bgTexture, playBtnTex, recBtnTex, exitBtnTex, menuBtnTex,
 prevBtnTex, nextBtnTex, currentPlateTex, shopBtnTex, selectBtnTex, coinsTex, buyBtnTex,
 priceBgTex, bonusTexture, recordTex, adsBG, continueBtnTex, life, buyLifeTex;
 
-GLuint load_texture(const char *apFileName) {
+GLuint loadTexture(const char *apFileName) {
 	GLuint texture;
 	texture = SOIL_load_OGL_texture(apFileName,
 		SOIL_LOAD_RGBA,
@@ -130,38 +129,38 @@ GLuint *loadTextureArr(int amount, char *nameSubStr) {
 		_itoa(i + 1, buff, 10);
 		strcat(path, buff);
 		strcat(path, ".jpg");
-		dest[i] = load_texture(path);
+		dest[i] = loadTexture(path);
 	}
 	return dest;
 }
 
-void loadImages() {
-	coinsTex = load_texture("coins1.jpg");
-	bgTexture = load_texture("bg.png");
-	menuBtnTex = load_texture("menuBtn.jpg");
-	playBtnTex = load_texture("playBtn.jpg");
-	recBtnTex = load_texture("recBtn.jpg");
-	exitBtnTex = load_texture("exitBtn.jpg");
-	priceBgTex = load_texture("priceBG.jpg");
-	trainBtnTex = load_texture("trainModeBtn.jpg");
-	nextLvlBtnTex = load_texture("nextLvlBtn.jpg");
-	normalBtnTex = load_texture("normalModeBtn.jpg");
-	buyBtnTex = load_texture("buyBtn.jpg");
-	backBtnTex = load_texture("backBtn.jpg");
-	prevBtnTex = load_texture("prevBtn.jpg");
-	nextBtnTex = load_texture("nextBtn.jpg");
-	shopBtnTex = load_texture("shopBtn.jpg");
-	selectBtnTex = load_texture("selectBtn.jpg");
+void loadTextures() {
+	coinsTex = loadTexture("coins1.jpg");
+	bgTexture = loadTexture("bg.png");
+	menuBtnTex = loadTexture("menuBtn.jpg");
+	playBtnTex = loadTexture("playBtn.jpg");
+	recBtnTex = loadTexture("recBtn.jpg");
+	exitBtnTex = loadTexture("exitBtn.jpg");
+	priceBgTex = loadTexture("priceBG.jpg");
+	trainBtnTex = loadTexture("trainModeBtn.jpg");
+	nextLvlBtnTex = loadTexture("nextLvlBtn.jpg");
+	normalBtnTex = loadTexture("normalModeBtn.jpg");
+	buyBtnTex = loadTexture("buyBtn.jpg");
+	backBtnTex = loadTexture("backBtn.jpg");
+	prevBtnTex = loadTexture("prevBtn.jpg");
+	nextBtnTex = loadTexture("nextBtn.jpg");
+	shopBtnTex = loadTexture("shopBtn.jpg");
+	selectBtnTex = loadTexture("selectBtn.jpg");
 	blocksTex = loadTextureArr(4, "block_");
 	lvlBtnTex = loadTextureArr(lvls, "lvlBtn_");
-	currentPlateTex = load_texture("plate_1.jpg");
+	currentPlateTex = loadTexture("plate_1.jpg");
 	plateTexes = loadTextureArr(plateTexesAmount, "plate_");
-	bonusTexture = load_texture("bonusTex.jpg");
-	recordTex = load_texture("recordBG.jpg");
-	adsBG = load_texture("adsBG.jpg");
-	continueBtnTex = load_texture("continueBtn.jpg");
-	life = load_texture("life.png");
-	buyLifeTex = load_texture("buyLifeTex.jpg");
+	bonusTexture = loadTexture("bonusTex.jpg");
+	recordTex = loadTexture("recordBG.jpg");
+	adsBG = loadTexture("adsBG.jpg");
+	continueBtnTex = loadTexture("continueBtn.jpg");
+	life = loadTexture("life.png");
+	buyLifeTex = loadTexture("buyLifeTex.jpg");
 }
 
 void MouseMoveClick(int btn, int state, int ax, int ay) {
@@ -197,7 +196,6 @@ int main(int argc, char *argv[]) {
 	glutTimerFunc(0, timer, 0);
 	init();
 	glutMainLoop();
-
 	return 0;
 }
 
@@ -211,7 +209,6 @@ void drawTexture(int aX, int aY, int aW, int aH, GLuint aTextID) {
 	glColor3f(1.0, 1.0, 1.0);
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, aTextID);
-
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glBegin(GL_QUADS);
@@ -221,7 +218,6 @@ void drawTexture(int aX, int aY, int aW, int aH, GLuint aTextID) {
 	glTexCoord2i(1, 1); glVertex2i(aX + aW, aY);
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
-
 }
 
 void renderBM(float x, float y, void *font, char *str) {
@@ -274,7 +270,7 @@ void specialKeysFunc(int key, int x, int y) {
 			shopPage--;
 		break;
 	case GLUT_KEY_RIGHT:
-		if (process == TRAINMODE && lvlsPage < lvls / visiblePart - 1)
+		if (process == TRAINMODE && lvlsPage < lvls / visiblePart)
 			lvlsPage++;
 		if (process == CHOOSEPLATEPROC && shopPage < plateTexesAmount - 1)
 			shopPage++;
@@ -315,10 +311,10 @@ void setLvlsInfo() {//Считывание кол-ва пройденных уровней и общего кол-ва уровн
 }
 
 void saveProgress(char *fName, int value) {
-	FILE *bonusValidityPeriod = fopen(fName, "w+");
+	FILE *file = fopen(fName, "w+");
 	if (bonusValidityPeriod != NULL) {
-		fprintf(bonusValidityPeriod, "%d", value);
-		fclose(bonusValidityPeriod);
+		fprintf(file, "%d", value);
+		fclose(file);
 	}
 	else
 		return;
@@ -486,12 +482,6 @@ void initSubMenuButtons() {
 	continueBtn.setButtonPosition(windowWidth / 2 - subMenuBtnW / 2, 3 * windowHeight / 4 + subMenuBtnH, subMenuBtnW, subMenuBtnH, continueBtnTex);
 }
 
-void addSubMenuButtons() {
-	if(mode != NORMALMODE)
-		nextLvlBtn.ShowBtn();
-	menuBtn.ShowBtn();
-}
-
 void addBall() {
 	ball.x = xLeftPlatePos + plateWidth / 2;
 	ball.y = yPlatePos - ball.radius;
@@ -521,31 +511,18 @@ void loadLvl(int i) {
 	glutSetCursor(GLUT_CURSOR_NONE);
 }
 
-void subMenu() {
-	addSubMenuButtons();
-	printText(windowWidth / 2 - strlen("Score : 10000") * 6, windowHeight / 4, "Score : ");
-	printText(windowWidth / 2, windowHeight / 4, score);
-	if (btnStart == GLUT_LEFT_BUTTON) {
-		if (menuBtn.isClicked(x, y, btnState)) {
-			process = MENUPROC;
-			btnStart = -1;
-		}
-		else if (nextLvlBtn.isClicked(x, y, btnState) && mode != NORMALMODE) {
-			loadLvl(currentTrainLvl);
-			btnStart = -1;
-		}
-	}
-}
-
 void initLvlMenu() {
 	int lvlBtnH = 60, lvlBtnW = 80, xSpacing = 120, ySpacing = 30, t = 0;
+	lvlBtns = (Button*)calloc(lvls, sizeof(Button));
 	for (int i = 0; i < lvls; i++) {
 		if ((i) % 2 == 0 && i != 0) {
 			ySpacing += 4 * lvlBtnH / 3;
 			xSpacing = 120;
 			t = 0;
 		}
-		if (i == visiblePart) {
+		if (i == 19)
+			i = 19;
+		if (i > 0 && i % visiblePart == 0) {
 			xSpacing = 120, ySpacing = 30, t = 0;
 		}
 		xSpacing += t * (lvlBtnW + 80);
@@ -555,6 +532,7 @@ void initLvlMenu() {
 }
 
 void flipping(int &currentPage, int maxPage) {
+	backBtn.ShowBtn();
 	if (lvls > 10) {
 		nextPageBtn.ShowBtn();
 		prevPageBtn.ShowBtn();
@@ -574,15 +552,14 @@ void flipping(int &currentPage, int maxPage) {
 void addLvlMenu() {
 	flipping(lvlsPage, lvls / visiblePart);
 	int max;
-	if (lvlsPage == 0) {
-		max = 10;
+	if (lvlsPage < lvls/visiblePart) {
+		max = lvlsPage*visiblePart + visiblePart;
 	}
 	else
-		max = lvlsPage*visiblePart + lvls - lvlsPage*visiblePart;
+		max = lvls;
 
 	for (int i = lvlsPage*visiblePart; i < max; i++)
 		lvlBtns[i].ShowBtn();
-	backBtn.ShowBtn();
 }
 
 bool isLvlOpen(int lvl) {
@@ -603,9 +580,9 @@ void selectLvl() {
 				}
 				break;
 			}
-			if (backBtn.isClicked(x, y, btnState))
-				process = SELECTMODEPROC;
 		}
+		if (backBtn.isClicked(x, y, btnState))
+			process = SELECTMODEPROC;
 	}
 	btnState = -1;
 }
@@ -705,7 +682,7 @@ void initFunctions() {
 	checkingNewPlateSkins();
 	purchased = loadLvl("purchasedPlates.txt", plateTexesAmount);
 	coins = readFile("coins.txt");
-	loadImages();
+	loadTextures();
 	readRecords();
 	initMenuButtons();
 	initLvlMenu();
@@ -932,7 +909,7 @@ void lvlPassed(int mode) {
 		}
 		currentTrainLvl++;
 		maxAvailableLvl = false;
-		process = SUBMENUPROC;
+		process = GAMEOVERPROC;
 	}
 	saveProgress("availableLvls.txt", availableLvls);
 	clearData();
@@ -1006,7 +983,7 @@ bool ballLose(int x, int y, int index) {
 		}
 		return true;
 		if (lifes == 0)
-			process = SUBMENUPROC;
+			process = GAMEOVERPROC;
 	}
 	return false;
 }
@@ -1097,8 +1074,6 @@ void printGameInfo(int x, int y) {
 		drawTexture(cx, windowHeight - 50, 30, 30, life);
 		cx += 50;
 	}
-	
-	//printText(x, y - 30, lifes);
 }
 
 void addRecord() {
@@ -1171,7 +1146,7 @@ void game() {
 				strcpy(record.name, "");
 			}
 			else
-				process = SUBMENUPROC;
+				process = GAMEOVERPROC;
 			clearData();
 		}
 		btnStart = -1;
@@ -1180,23 +1155,31 @@ void game() {
 
 void printGameOverInfo() {
 	menuBtn.ShowBtn();
+	if(mode == TRAINMODE)
+		nextLvlBtn.ShowBtn();
 	printText(windowWidth / 2 - strlen("GAME OVER!") * 6, windowHeight / 5, "GAME OVER!");
-	if(normalModeLvlPassed == lvls)
+	if (normalModeLvlPassed == lvls)
 		printText(windowWidth / 2 - strlen("YOU'VE PASSED ALL LEVELES") * 6, windowHeight / 4, "YOU'VE PASSED ALL LEVELES");
 	printText(windowWidth / 2 - strlen("YOUR SCORE :  ") * 6, windowHeight / 3, "YOU SCORE : ");
-	printText(windowWidth / 2 + strlen("       10000")*6, windowHeight / 3, score);
-	if (menuBtn.isClicked(x, y, btnState) && btnStart == GLUT_LEFT_BUTTON) {
-		process = MENUPROC;
-		btnStart = -1;
+	printText(windowWidth / 2 + strlen("       10000") * 6, windowHeight / 3, score);
+	if (btnStart == GLUT_LEFT_BUTTON) {
+		if (menuBtn.isClicked(x, y, btnState)) {
+			process = MENUPROC;
+			btnStart = -1;
+		}
+		if (nextLvlBtn.isClicked(x, y, btnState) && mode == TRAINMODE) {
+			if (currentTrainLvl + 1 <= lvls)
+				currentTrainLvl++;
+			loadLvl(currentTrainLvl);
+			btnStart = -1;
+		}
 	}
 }
 
 void display() {
 	glClear(GL_COLOR_BUFFER_BIT);
 	glLoadIdentity();
-	
 	drawTexture(0, 0, windowWidth, windowHeight, bgTexture);
-	
 	if (process != GAMEPROC) {
 		showCoins();
 		glutSetCursor(GLUT_CURSOR_LEFT_ARROW);
@@ -1214,9 +1197,6 @@ void display() {
 		break;
 	case SELECTMODEPROC:
 		selectGameMode();
-		break;
-	case SUBMENUPROC:
-		subMenu();
 		break;
 	case INITPROC:
 		initFunctions();
@@ -1238,6 +1218,10 @@ void display() {
 		choosePlate();
 		break;
 	case EXIT:
+		free(blocksTex);
+		free(plateTexes);
+		free(lvlBtnTex);
+		free(lvlBtns);
 		glutDestroyWindow(1);
 		break;
 	}
