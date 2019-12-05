@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS
+п»ї#define _CRT_SECURE_NO_WARNINGS
 #include"Button.h"
 #include<math.h>
 #include<vector>
@@ -37,7 +37,6 @@ int blockAmount = 0, score = 0, mode, recordsRows = 0;
 bool destroyWnd = false, maxAvailableLvl = false, activeKey = false;
 float xAngle = 2.0, yAngle = 1.0;
 int blockHeight = 20, blockWidth = 50, process = INITPROC, lvlsPassed, lvls, bonusAmount = 0, ballsAmount = 0, normalModeLvlPassed = 1;
-//50 20
 int coins = 50;
 char *purchased = NULL;
 int visiblePart = 10, lvlsPage = 0, shopPage = 0;
@@ -306,7 +305,7 @@ void keyBoardFunc(unsigned char key, int x, int y) {
 	}
 }
 
-void setLvlsInfo() {//Считывание кол-ва пройденных уровней и общего кол-ва уровней
+void setLvlsInfo() {
 	availableLvls = readFile("progress.txt");
 }
 
@@ -730,7 +729,7 @@ void showPrice(int page, bool redraw) {
 
 void choosePlate() {
 	static bool redraw = false;
-	flipping(shopPage, plateTexesAmount - 1);
+	flipping(shopPage, plateTexesAmount-1);
 	if (purchased[shopPage] == '1') {
 		selectBtn.ShowBtn();
 		redraw = true;
@@ -972,6 +971,8 @@ void wallsRebound(int x, int y, int r, int index) {
 
 bool ballLose(int x, int y, int index) {
 	if (y > yPlatePos + 40) {
+		if (lifes == 0)
+			process = GAMEOVERPROC;
 		if (ballsAmount > 1) {
 			btnStart = -1;
 			balls.erase(balls.begin() + index);
@@ -982,8 +983,6 @@ bool ballLose(int x, int y, int index) {
 			balls[index].move = false;
 		}
 		return true;
-		if (lifes == 0)
-			process = GAMEOVERPROC;
 	}
 	return false;
 }
@@ -1096,9 +1095,7 @@ void showCoins() {
 	printText(windowWidth - strlen(buff) * 9 - 45, 27, coins);
 }
 
-int c = 0;
-
-bool showAds() {
+bool toOfferExtraLife() {
 	char numBuff[7] = "";
 	_itoa(lifeCost, numBuff, 10);
 	showCoins();
@@ -1114,7 +1111,6 @@ bool showAds() {
 			lifes++;
 			lifeCost *= 2;
 			process = GAMEPROC;
-			c++;
 		}
 		if (continueBtn.isClicked(x, y, btnState))
 			return false;
@@ -1132,10 +1128,7 @@ void game() {
 		ViewBlocks();
 	}
 	else {
-		if (c > 0) {
-			c = 1;
-		}
-		if (!showAds()) {
+		if (!toOfferExtraLife()) {
 			coins += score / 10;
 			lifeCost = 100;
 			saveProgress("coins.txt", coins);
